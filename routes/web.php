@@ -4,9 +4,11 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerDashboardController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DispatchController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\InvoiceController;
@@ -15,12 +17,17 @@ use App\Http\Controllers\OrderTrackingController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SaleReturnController;
+use App\Http\Controllers\SellerController;
+use App\Http\Controllers\SellerDispatchController;
+use App\Http\Controllers\SellerPosController;
+use App\Http\Controllers\SellerSaleController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\SupplierController;
@@ -34,8 +41,8 @@ require __DIR__ . '/auth.php';
 //  PUBLIC STOREFRONT (no auth)
 // ════════════════════════════════════════════════════════════════
 Route::prefix('shop')->name('shop.')->group(function () {
-    Route::get('/',                 [StorefrontController::class, 'index'])->name('index');
-    Route::get('/product/{product}',[StorefrontController::class, 'show'])->name('show');
+    Route::get('/',                  [StorefrontController::class, 'index'])->name('index');
+    Route::get('/product/{product}', [StorefrontController::class, 'show'])->name('show');
 });
 
 Route::prefix('cart')->name('cart.')->group(function () {
@@ -71,13 +78,12 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('role:admin|inventory_manager')->group(function () {
         Route::get('/dashboard/suppliers', [SupplierDashboardController::class, 'index'])->name('dashboard.suppliers');
     });
-
     Route::middleware('role:admin|sales_executive')->group(function () {
         Route::get('/dashboard/customers', [CustomerDashboardController::class, 'index'])->name('dashboard.customers');
     });
 
     // ── Products ─────────────────────────────────────────────────
-    Route::middleware('role:admin|inventory_manager')->group(function () {
+    Route::middleware('role:admin|inventory_manager|manager')->group(function () {
         Route::get('products/create',         [ProductController::class, 'create'])->name('products.create');
         Route::post('products',               [ProductController::class, 'store'])->name('products.store');
         Route::get('products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
@@ -86,6 +92,17 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy')->middleware('role:admin');
     Route::get('products',           [ProductController::class, 'index'])->name('products.index');
     Route::get('products/{product}', [ProductController::class, 'show'])->name('products.show');
+
+    // ── Productions ───────────────────────────────────────────────
+    Route::middleware('role:admin|manager|inventory_manager')->group(function () {
+        Route::get('productions/create',          [ProductionController::class, 'create'])->name('productions.create');
+        Route::post('productions',                [ProductionController::class, 'store'])->name('productions.store');
+        Route::delete('productions/{production}', [ProductionController::class, 'destroy'])->name('productions.destroy');
+    });
+    Route::middleware('role:admin|manager|inventory_manager|viewer')->group(function () {
+        Route::get('productions',              [ProductionController::class, 'index'])->name('productions.index');
+        Route::get('productions/{production}', [ProductionController::class, 'show'])->name('productions.show');
+    });
 
     // ── Suppliers ────────────────────────────────────────────────
     Route::middleware('role:admin')->group(function () {
@@ -98,6 +115,60 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('role:admin|inventory_manager|viewer')->group(function () {
         Route::get('suppliers',            [SupplierController::class, 'index'])->name('suppliers.index');
         Route::get('suppliers/{supplier}', [SupplierController::class, 'show'])->name('suppliers.show');
+    });
+
+    // ── Sellers ──────────────────────────────────────────────────
+    Route::middleware('role:admin|sales_executive')->group(function () {
+        Route::get('sellers/create',        [SellerController::class, 'create'])->name('sellers.create');
+        Route::post('sellers',              [SellerController::class, 'store'])->name('sellers.store');
+        Route::get('sellers/{seller}/edit', [SellerController::class, 'edit'])->name('sellers.edit');
+        Route::put('sellers/{seller}',      [SellerController::class, 'update'])->name('sellers.update');
+    });
+    Route::middleware('role:admin|sales_executive|manager|inventory_manager|viewer')->group(function () {
+        Route::get('sellers',          [SellerController::class, 'index'])->name('sellers.index');
+        Route::get('sellers/{seller}', [SellerController::class, 'show'])->name('sellers.show');
+    });
+
+    // ── Dispatch Orders ───────────────────────────────────────────
+    Route::middleware('role:admin|sales_executive')->group(function () {
+        Route::get('dispatches/create',              [DispatchController::class, 'create'])->name('dispatches.create');
+        Route::post('dispatches',                    [DispatchController::class, 'store'])->name('dispatches.store');
+        Route::post('dispatches/{dispatch}/payment', [DispatchController::class, 'recordPayment'])->name('dispatches.payment');
+    });
+    Route::middleware('role:admin|sales_executive|manager|inventory_manager|viewer')->group(function () {
+        Route::get('dispatches',            [DispatchController::class, 'index'])->name('dispatches.index');
+        Route::get('dispatches/{dispatch}', [DispatchController::class, 'show'])->name('dispatches.show');
+    });
+
+    // ── Seller Sales ─────────────────────────────────────────────
+    Route::middleware('role:seller')->group(function () {
+        Route::get('my-sales/create', [SellerSaleController::class, 'create'])->name('seller-sales.create');
+        Route::post('my-sales',       [SellerSaleController::class, 'store'])->name('seller-sales.store');
+    });
+    Route::middleware('role:admin|sales_executive')->group(function () {
+        Route::get('seller-sales/create', [SellerSaleController::class, 'create'])->name('seller-sales.create.admin');
+        Route::post('seller-sales',       [SellerSaleController::class, 'store'])->name('seller-sales.store.admin');
+    });
+    Route::get('seller-sales',              [SellerSaleController::class, 'index'])->name('seller-sales.index');
+    Route::get('seller-sales/{sellerSale}', [SellerSaleController::class, 'show'])->name('seller-sales.show');
+
+    // ── Commissions ───────────────────────────────────────────────
+    Route::middleware('role:admin|sales_executive')->group(function () {
+        Route::get('commissions',                          [CommissionController::class, 'index'])->name('commissions.index');
+        Route::post('commissions/{commission}/mark-paid',  [CommissionController::class, 'markPaid'])->name('commissions.mark-paid');
+        Route::post('commissions/payout-seller',           [CommissionController::class, 'payoutSeller'])->name('commissions.payout-seller');
+        Route::post('commissions/payout-all',              [CommissionController::class, 'payoutAll'])->name('commissions.payout-all');
+    });
+
+    // ── Seller POS ────────────────────────────────────────────────
+    Route::middleware('role:seller|admin|sales_executive')->group(function () {
+        Route::get('seller-pos',  [SellerPosController::class, 'index'])->name('seller-pos.index');
+        Route::post('seller-pos', [SellerPosController::class, 'sale'])->name('seller-pos.sale');
+    });
+
+    // ── Seller Dispatch History ───────────────────────────────────
+    Route::middleware('role:seller')->group(function () {
+        Route::get('my-dispatches', [SellerDispatchController::class, 'index'])->name('seller-dispatches.index');
     });
 
     // ── Customers ────────────────────────────────────────────────
@@ -148,10 +219,10 @@ Route::middleware(['auth'])->group(function () {
 
     // ── Payments ─────────────────────────────────────────────────
     Route::middleware('role:admin|sales_executive')->group(function () {
-        Route::get('payments',                  [PaymentController::class, 'index'])->name('payments.index');
-        Route::get('payments/receivables',      [PaymentController::class, 'receivables'])->name('payments.receivables');
-        Route::post('payments/{sale}',          [PaymentController::class, 'store'])->name('payments.store');
-        Route::delete('payments/{payment}',     [PaymentController::class, 'destroy'])->name('payments.destroy');
+        Route::get('payments',              [PaymentController::class, 'index'])->name('payments.index');
+        Route::get('payments/receivables',  [PaymentController::class, 'receivables'])->name('payments.receivables');
+        Route::post('payments/{sale}',      [PaymentController::class, 'store'])->name('payments.store');
+        Route::delete('payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
     });
 
     // ── Purchases ────────────────────────────────────────────────
@@ -186,7 +257,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
     });
 
-    // ── POS ──────────────────────────────────────────────────────
+    // ── POS (original) ───────────────────────────────────────────
     Route::middleware('role:admin|sales_executive')->group(function () {
         Route::get('pos',  [PosController::class, 'index'])->name('pos.index');
         Route::post('pos', [PosController::class, 'sale'])->name('pos.sale');
@@ -199,18 +270,28 @@ Route::middleware(['auth'])->group(function () {
         Route::get('profit',    [ReportController::class, 'profit'])->name('profit')->middleware('role:admin|viewer');
     });
 
+    // ── New Reports ───────────────────────────────────────────────
+    Route::middleware('role:admin|viewer')->group(function () {
+        Route::get('reports/seller-pnl',         [ReportController::class, 'sellerPnl'])->name('reports.seller-pnl');
+        Route::get('reports/account-statement',  [ReportController::class, 'accountStatement'])->name('reports.account-statement');
+        Route::get('reports/best-products',      [ReportController::class, 'bestProducts'])->name('reports.best-products');
+        Route::get('reports/seller-performance', [ReportController::class, 'sellerPerformance'])->name('reports.seller-performance');
+        Route::get('reports/stock-movement',     [ReportController::class, 'stockMovement'])->name('reports.stock-movement');
+    });
+
+    // ── Exports ──────────────────────────────────────────────────
     Route::prefix('export')->name('export.')->group(function () {
         Route::get('sales',     [ExportController::class, 'sales'])->name('sales')->middleware('role:admin|viewer');
         Route::get('purchases', [ExportController::class, 'purchases'])->name('purchases')->middleware('role:admin|inventory_manager|viewer');
         Route::get('profit',    [ExportController::class, 'profit'])->name('profit')->middleware('role:admin|viewer');
     });
 
-    // ── Notifications ────────────────────────────────────────────
-    Route::get('notifications',                        [NotificationController::class, 'index'])->name('notifications.index');
-    Route::post('notifications/{notification}/read',   [NotificationController::class, 'markRead'])->name('notifications.read');
-    Route::post('notifications/read-all',              [NotificationController::class, 'markAllRead'])->name('notifications.readAll');
+    // ── Notifications ─────────────────────────────────────────────
+    Route::get('notifications',                      [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('notifications/read-all',            [NotificationController::class, 'markAllRead'])->name('notifications.readAll');
 
-    // ── Admin only ───────────────────────────────────────────────
+    // ── Admin only ────────────────────────────────────────────────
     Route::middleware('role:admin')->group(function () {
         Route::resource('categories', CategoryController::class)->except(['show']);
         Route::resource('users',      UserController::class)->except(['show']);

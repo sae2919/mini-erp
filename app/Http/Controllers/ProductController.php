@@ -70,20 +70,21 @@ class ProductController extends Controller
     }
 
     public function update(StoreProductRequest $request, Product $product)
-    {
-        $data = collect($request->validated())->except('stock_quantity')->toArray();
+{
+    $data = collect($request->validated())->except('stock_quantity')->toArray();
 
-        // Inventory managers cannot change pricing fields
-        if (!auth()->user()->hasRole('admin')) {
-            unset($data['price'], $data['cost_price']);
-        }
-
-        $product->update($data);
-        ActivityLogger::updated($product, "Product \"{$product->name}\" updated");
-
-        return redirect()->route('products.index')
-            ->with('success', 'Product updated successfully.');
+    if (!auth()->user()->hasRole('admin')) {
+        unset($data['price'], $data['cost_price'],
+              $data['dispatch_price'], $data['mrp'],
+              $data['commission_rate'], $data['production_cost']);
     }
+
+    $product->update($data);
+    ActivityLogger::updated($product, "Product \"{$product->name}\" updated");
+
+    return redirect()->route('products.index')
+        ->with('success', 'Product updated successfully.');
+}
 
     public function destroy(Product $product)
     {

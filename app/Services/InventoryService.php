@@ -55,19 +55,51 @@ class InventoryService
 
             $this->validateStockAvailability($data['items']);
 
-            $totalAmount = collect($data['items'])->sum(
-                fn($item) => $item['quantity'] * $item['selling_price']
-            );
+            $totalAmount     = 0;
+            $totalCommission = 0;
+            $itemsToCreate   = [];
 
+            // ── Pre-calculate totals before DB writes ──────────────────────
+            foreach ($data['items'] as $item) {
+                $qty            = $item['quantity'];
+                $sellingPrice   = $item['selling_price'];
+                $dispatchPrice  = $item['dispatch_price'] ?? 0;
+                $commissionRate = $item['commission_rate'] ?? 0;
+
+                $lineTotal        = $qty * $sellingPrice;
+                $commissionAmount = round($lineTotal * ($commissionRate / 100), 2);
+
+                $totalAmount     += $lineTotal;
+                $totalCommission += $commissionAmount;
+
+                $itemsToCreate[] = [
+                    'product_id'       => $item['product_id'],
+                    'quantity'         => $qty,
+                    'selling_price'    => $sellingPrice,
+                    'dispatch_price'   => $dispatchPrice,
+                    'commission_rate'  => $commissionRate,
+                    'commission_amount'=> $commissionAmount,
+                ];
+            }
+
+            $companyReceivable = $totalAmount - $totalCommission;
+
+            // ── Create Sale record ─────────────────────────────────────────
             $sale = Sale::create([
-                'reference'     => Sale::generateReference(),
-                'customer_name' => $data['customer_name'] ?? null,
-                'sale_date'     => $data['sale_date'],
-                'total_amount'  => $totalAmount,
-                'notes'         => $data['notes'] ?? null,
+                'reference'          => Sale::generateReference(),
+                'seller_id'          => $data['seller_id'] ?? null,
+                'customer_name'      => $data['customer_name'] ?? null,
+                'customer_phone'     => $data['customer_phone'] ?? null,
+                'sale_date'          => $data['sale_date'],
+                'total_amount'       => $totalAmount,
+                'seller_commission'  => $totalCommission,
+                'commission_status'  => 'pending',
+                'company_receivable' => $companyReceivable,
+                'notes'              => $data['notes'] ?? null,
             ]);
 
-            foreach ($data['items'] as $item) {
+            // ── Create SaleItems + decrement stock ─────────────────────────
+            foreach ($itemsToCreate as $item) {
                 $product = Product::where('id', $item['product_id'])
                     ->lockForUpdate()
                     ->firstOrFail();
@@ -81,11 +113,14 @@ class InventoryService
                 }
 
                 SaleItem::create([
-                    'sale_id'       => $sale->id,
-                    'product_id'    => $product->id,
-                    'quantity'      => $item['quantity'],
-                    'selling_price' => $item['selling_price'],
-                    'cost_price'    => $product->cost_price,
+                    'sale_id'          => $sale->id,
+                    'product_id'       => $product->id,
+                    'quantity'         => $item['quantity'],
+                    'selling_price'    => $item['selling_price'],
+                    'dispatch_price'   => $item['dispatch_price'],
+                    'cost_price'       => $product->cost_price,
+                    'commission_rate'  => $item['commission_rate'],
+                    'commission_amount'=> $item['commission_amount'],
                 ]);
 
                 $product->decrement('stock_quantity', $item['quantity']);
@@ -97,9 +132,6 @@ class InventoryService
 
     // ─── Stock Adjustment ─────────────────────────────────────────────────────
 
-    /**
-     * Manually adjust stock up or down with a full audit trail.
-     */
     public function adjustStock(
         int $productId,
         string $type,

@@ -18,6 +18,9 @@ class StoreSaleRequest extends FormRequest
             'items.*.product_id'     => ['required', 'exists:products,id'],
             'items.*.quantity'       => ['required', 'integer', 'min:1', 'max:99999'],
             'items.*.selling_price'  => ['required', 'numeric', 'min:0.01', 'max:9999999'],
+            'seller_id'                  => ['nullable', 'exists:users,id'],
+'items.*.commission_rate'    => ['nullable', 'numeric', 'min:0', 'max:100'],
+'items.*.dispatch_price'     => ['nullable', 'numeric', 'min:0'],
         ];
     }
 

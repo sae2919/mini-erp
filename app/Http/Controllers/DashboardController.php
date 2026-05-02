@@ -2,101 +2,99 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Commission;
+use App\Models\DispatchOrder;
 use App\Models\ErpNotification;
-use App\Models\Expense;
-use App\Models\Payment;
 use App\Models\Product;
-use App\Models\Purchase;
-use App\Models\Sale;
-use App\Services\ReportService;
+use App\Models\Production;
+use App\Models\Seller;
+use App\Models\SellerSale;
+use App\Models\SellerPayment;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function __construct(private ReportService $reportService) {}
-
     public function index()
     {
-        $today     = Carbon::today();
+        $user = auth()->user();
+
+        if ($user->hasRole('seller')) {
+            return $this->sellerDashboard($user);
+        }
+
+        return $this->adminDashboard();
+    }
+
+    private function adminDashboard()
+    {
         $thisMonth = Carbon::now()->startOfMonth();
-        $lastMonth = Carbon::now()->subMonth()->startOfMonth();
-        $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
 
-        // ── KPIs ──────────────────────────────────────────────────
-        $totalProducts    = Product::active()->count();
-        $totalSalesValue  = Sale::sum('total_amount');
-        $totalPurchaseCost= Purchase::sum('total_amount');
-        $lowStockCount    = Product::active()->lowStock()->count();
+        $totalProducts      = Product::active()->count();
+        $warehouseStock     = Product::active()->sum('stock_quantity');
+        $lowStockCount      = Product::active()->lowStock()->count();
+        $totalDispatched    = DispatchOrder::where('status','!=','cancelled')->sum('total_amount');
+        $totalCollected     = SellerPayment::sum('amount');
+        $outstandingBalance = DispatchOrder::where('payment_status','!=','paid')
+            ->where('status','!=','cancelled')
+            ->sum(DB::raw('total_amount - paid_amount'));
+        $totalCommissions   = Commission::sum('amount');
+        $pendingCommissions = Commission::where('status','pending')->sum('amount');
+        $dispatchThisMonth  = DispatchOrder::where('dispatch_date','>=',$thisMonth)->sum('total_amount');
+        $salesThisMonth     = SellerSale::where('sale_date','>=',$thisMonth)->sum('total_amount');
+        $productionThisMonth= Production::where('production_date','>=',$thisMonth)->sum('total_cost');
 
-        // ── This month vs last month ──────────────────────────────
-        $salesThisMonth  = Sale::where('sale_date', '>=', $thisMonth)->sum('total_amount');
-        $salesLastMonth  = Sale::whereBetween('sale_date', [$lastMonth, $lastMonthEnd])->sum('total_amount');
-        $salesGrowth     = $salesLastMonth > 0 ? round((($salesThisMonth - $salesLastMonth) / $salesLastMonth) * 100, 1) : 0;
+        $topSellers = Seller::withSum('sales as total_sales','total_amount')
+            ->withCount('sales')->orderByDesc('total_sales')->take(5)->get();
 
-        $purchasesThisMonth = Purchase::where('purchase_date', '>=', $thisMonth)->sum('total_amount');
-        $expensesThisMonth  = Expense::where('expense_date', '>=', $thisMonth)->sum('amount');
-        $salesToday         = Sale::whereDate('sale_date', $today)->sum('total_amount');
-
-        // ── P&L Summary ───────────────────────────────────────────
-        $grossProfit    = Sale::join('sale_items', 'sales.id', '=', 'sale_items.sale_id')
-            ->selectRaw('SUM((sale_items.selling_price - sale_items.cost_price) * sale_items.quantity) as profit')
-            ->whereNull('sales.deleted_at')
-            ->value('profit') ?? 0;
-
-        $netProfit      = $grossProfit - Expense::sum('amount');
-        $profitMargin   = $totalSalesValue > 0 ? round(($grossProfit / $totalSalesValue) * 100, 1) : 0;
-
-        // ── Receivables ───────────────────────────────────────────
-        $totalReceivable  = Sale::whereIn('payment_status', ['unpaid','partial'])->sum('total_amount');
-        $paymentsReceived = Payment::sum('amount');
-        $outstandingAmount = $totalReceivable - $paymentsReceived;
-
-        // ── 30-day sales trend ────────────────────────────────────
-        $last30 = collect(range(29, 0))->map(function ($d) {
-            $date = Carbon::today()->subDays($d);
-            return [
-                'date'  => $date->format('d M'),
-                'total' => Sale::whereDate('sale_date', $date)->sum('total_amount'),
-            ];
-        });
-
-        // ── 12-month revenue vs expenses ──────────────────────────
-        $last12Months = collect(range(11, 0))->map(function ($m) {
+        $monthlyData = collect(range(11,0))->map(function($m) {
             $date = Carbon::now()->startOfMonth()->subMonths($m);
             return [
-                'month'    => $date->format('M Y'),
-                'revenue'  => Sale::whereYear('sale_date', $date->year)->whereMonth('sale_date', $date->month)->sum('total_amount'),
-                'expenses' => Expense::whereYear('expense_date', $date->year)->whereMonth('expense_date', $date->month)->sum('amount'),
-                'purchases'=> Purchase::whereYear('purchase_date', $date->year)->whereMonth('purchase_date', $date->month)->sum('total_amount'),
+                'month'      => $date->format('M Y'),
+                'dispatched' => DispatchOrder::whereYear('dispatch_date',$date->year)->whereMonth('dispatch_date',$date->month)->sum('total_amount'),
+                'collected'  => SellerPayment::whereYear('paid_at',$date->year)->whereMonth('paid_at',$date->month)->sum('amount'),
+                'sold'       => SellerSale::whereYear('sale_date',$date->year)->whereMonth('sale_date',$date->month)->sum('total_amount'),
             ];
         });
 
-        // ── Top products ──────────────────────────────────────────
-        $topProducts = DB::table('sale_items')
-            ->join('products', 'products.id', '=', 'sale_items.product_id')
-            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
-            ->whereNull('sales.deleted_at')
-            ->select(['products.name', DB::raw('SUM(sale_items.subtotal) as revenue'), DB::raw('SUM(sale_items.quantity) as units')])
-            ->groupBy('products.id', 'products.name')
-            ->orderByDesc('revenue')
-            ->limit(6)->get();
-
-        // ── Low stock + recent sales ──────────────────────────────
-        $lowStockProducts = Product::active()->lowStock()->with('category')->orderBy('stock_quantity')->get();
-        $recentSales      = Sale::with('items')->latest()->take(5)->get();
-        $pendingOrders    = Sale::where('status', 'pending')->count();
-        $unreadNotifications = ErpNotification::forUser(auth()->id())->unread()->latest()->take(5)->get();
+        $lowStockProducts = Product::active()->lowStock()->with('category')->orderBy('stock_quantity')->take(6)->get();
+        $recentDispatches = DispatchOrder::with('seller')->latest()->take(5)->get();
+        $notifications    = ErpNotification::forUser(auth()->id())->unread()->latest()->take(5)->get();
 
         return view('dashboard.index', compact(
-            'totalProducts', 'totalSalesValue', 'totalPurchaseCost', 'lowStockCount',
-            'salesThisMonth', 'salesLastMonth', 'salesGrowth',
-            'purchasesThisMonth', 'expensesThisMonth', 'salesToday',
-            'grossProfit', 'netProfit', 'profitMargin',
-            'totalReceivable', 'outstandingAmount',
-            'last30', 'last12Months', 'topProducts',
-            'lowStockProducts', 'recentSales', 'pendingOrders',
-            'unreadNotifications'
+            'totalProducts','warehouseStock','lowStockCount',
+            'totalDispatched','totalCollected','outstandingBalance',
+            'totalCommissions','pendingCommissions',
+            'dispatchThisMonth','salesThisMonth','productionThisMonth',
+            'topSellers','monthlyData','lowStockProducts',
+            'recentDispatches','notifications'
+        ));
+    }
+
+    private function sellerDashboard($user)
+    {
+        $seller     = Seller::where('user_id',$user->id)->firstOrFail();
+        $thisMonth  = Carbon::now()->startOfMonth();
+
+        $myStock        = $seller->stocks()->with('product.category')->get();
+        $mySalesTotal   = $seller->sales()->sum('total_amount');
+        $myCommission   = $seller->commissions()->where('status','pending')->sum('amount');
+        $myBalanceDue   = max(0, $seller->balance_due);
+        $salesThisMonth = $seller->sales()->where('sale_date','>=',$thisMonth)->sum('total_amount');
+        $recentSales    = $seller->sales()->with('items.product')->latest()->take(5)->get();
+        $recentDispatches = $seller->dispatchOrders()->with('items.product')->latest()->take(3)->get();
+
+        $monthlySales = collect(range(5,0))->map(function($m) use ($seller) {
+            $date = Carbon::now()->startOfMonth()->subMonths($m);
+            return [
+                'month' => $date->format('M'),
+                'sales' => $seller->sales()->whereYear('sale_date',$date->year)->whereMonth('sale_date',$date->month)->sum('total_amount'),
+            ];
+        });
+
+        return view('dashboard.seller', compact(
+            'seller','myStock','mySalesTotal','myCommission','myBalanceDue',
+            'salesThisMonth','recentSales','recentDispatches','monthlySales'
         ));
     }
 }
