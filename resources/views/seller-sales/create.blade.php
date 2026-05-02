@@ -151,9 +151,13 @@ function addRow() {
                    min="1" value="1" required>
         </td>
         <td class="py-2 pr-2">
-            <input type="number" name="items[${i}][selling_price]"
-                   class="price w-28 border border-gray-300 rounded px-2 py-1.5 text-sm"
-                   step="0.01" min="0" required>
+            <input type="number"
+                   name="items[${i}][selling_price]"
+                   class="price w-28 border border-gray-300 rounded px-2 py-1.5 text-sm bg-gray-100 cursor-not-allowed"
+                   step="0.01"
+                   min="0"
+                   readonly
+                   required>
         </td>
         <td class="py-2 pr-2 text-xs text-purple-600 comm-col">—</td>
         <td class="py-2 pr-2">
@@ -163,7 +167,6 @@ function addRow() {
             <button type="button" class="del text-red-400 hover:text-red-600 text-lg font-bold">×</button>
         </td>
 
-        {{-- ✅ HIDDEN INPUTS: These actually submit commission_rate and dispatch_price --}}
         <input type="hidden" name="items[${i}][commission_rate]" class="hidden-comm" value="0">
         <input type="hidden" name="items[${i}][dispatch_price]"  class="hidden-disp" value="0">
     `;
@@ -181,11 +184,14 @@ function addRow() {
 
     sel.addEventListener('change', () => {
         const o = sel.options[sel.selectedIndex];
+
         avail.textContent = o.dataset.avail ? o.dataset.avail + ' ' + o.dataset.unit : '—';
-        if (!price.value && o.dataset.mrp) price.value = parseFloat(o.dataset.mrp).toFixed(2);
+
+        // ✅ FIXED HERE
+        price.value = o.dataset.disp ? parseFloat(o.dataset.disp).toFixed(2) : 0;
+
         qty.max = o.dataset.avail || 9999;
 
-        // Update hidden inputs immediately when product selected
         hiddenComm.value = o.dataset.comm || 0;
         hiddenDisp.value = o.dataset.disp || 0;
 
@@ -193,7 +199,6 @@ function addRow() {
     });
 
     qty.addEventListener('input', calc);
-    price.addEventListener('input', calc);
 
     tr.querySelector('.del').addEventListener('click', () => {
         tr.remove();
@@ -201,22 +206,34 @@ function addRow() {
     });
 
     function calc() {
-        const o       = sel.options[sel.selectedIndex];
-        const q       = parseFloat(qty.value) || 0;
-        const p       = parseFloat(price.value) || 0;
-        const d       = parseFloat(o.dataset.disp) || 0;
-        const cr      = parseFloat(o.dataset.comm) || 0;
-        const commAmt = q * d * (cr / 100);
+    const o  = sel.options[sel.selectedIndex];
+    const q  = parseFloat(qty.value) || 0;
+    const max = parseFloat(o.dataset.avail) || 0;
 
-        sub.textContent  = '₹' + (q * p).toFixed(2);
-        comm.textContent = cr > 0 ? `${cr}% = ₹${commAmt.toFixed(2)}` : '—';
-
-        // Keep hidden inputs in sync on every recalc
-        hiddenComm.value = cr;
-        hiddenDisp.value = d;
-
-        calcTotals();
+    // 🚨 STOCK VALIDATION
+    if (q > max) {
+        qty.value = max;
+        alert(`Only ${max} items available in stock`);
+        return;
     }
+
+    const p  = parseFloat(price.value) || 0;
+
+    // ✅ FIX: fallback to price if dispatch_price is 0
+    const d  = parseFloat(o.dataset.disp) || p;
+
+    const cr = parseFloat(o.dataset.comm) || 0;
+
+    const commAmt = q * d * (cr / 100);
+
+    sub.textContent  = '₹' + (q * p).toFixed(2);
+    comm.textContent = cr > 0 ? `${cr}% = ₹${commAmt.toFixed(2)}` : '—';
+
+    hiddenComm.value = cr;
+    hiddenDisp.value = d;
+
+    calcTotals();
+}
 }
 
 function calcTotals() {
@@ -246,7 +263,7 @@ document.getElementById('sale-form').addEventListener('submit', e => {
     }
 });
 
-// Start with one empty row
+
 addRow();
 </script>
 @endpush

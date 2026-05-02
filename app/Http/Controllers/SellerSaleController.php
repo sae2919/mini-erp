@@ -28,10 +28,10 @@ class SellerSaleController extends Controller
         $sellers  = $mySeller ? collect() : Seller::active()->orderBy('name')->get();
 
         $sales = SellerSale::with(['seller','items.product'])
-            ->when($mySeller,    fn($q)=>$q->where('seller_id',$mySeller->id))
+            ->when($mySeller, fn($q)=>$q->where('seller_id',$mySeller->id))
             ->when(!$mySeller && $request->seller_id, fn($q)=>$q->where('seller_id',$request->seller_id))
             ->when($request->from, fn($q)=>$q->whereDate('sale_date','>=',$request->from))
-            ->when($request->to,   fn($q)=>$q->whereDate('sale_date','<=',$request->to))
+            ->when($request->to, fn($q)=>$q->whereDate('sale_date','<=',$request->to))
             ->latest()->paginate(20)->withQueryString();
 
         return view('seller-sales.index', compact('sales','sellers','mySeller'));
@@ -107,8 +107,9 @@ class SellerSaleController extends Controller
                     $sellingPrice   = (float)$item['selling_price'];
                     $dispatchPrice  = (float)$product->dispatch_price;
                     $commissionRate = (float)$product->commission_rate;
-                    $commAmt        = round($qty * $dispatchPrice * ($commissionRate / 100), 2);
-                    $subtotal       = $qty * $sellingPrice;
+
+                    $commAmt  = round($qty * $dispatchPrice * ($commissionRate / 100), 2);
+                    $subtotal = $qty * $sellingPrice;
 
                     SellerSaleItem::create([
                         'seller_sale_id'    => $sale->id,
@@ -122,6 +123,7 @@ class SellerSaleController extends Controller
                     ]);
 
                     $ss->decrement('quantity', $qty);
+
                     $totalAmount     += $subtotal;
                     $totalCommission += $commAmt;
                     $totalCompany    += $qty * $dispatchPrice;
@@ -166,6 +168,7 @@ class SellerSaleController extends Controller
         if (auth()->user()->hasRole('seller')) {
             abort_if($sellerSale->seller_id !== $this->mySellerOrNull()?->id, 403);
         }
+
         $sellerSale->load(['seller','items.product','commission']);
         return view('seller-sales.show', compact('sellerSale'));
     }

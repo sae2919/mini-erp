@@ -1,5 +1,5 @@
 <?php
-
+use App\Http\Controllers\StockRequestController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
@@ -34,6 +34,7 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupplierDashboardController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+
 
 require __DIR__ . '/auth.php';
 
@@ -297,4 +298,24 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('users',      UserController::class)->except(['show']);
         Route::get('activity-logs',   [ActivityLogController::class, 'index'])->name('activity-logs.index');
     });
+    Route::resource('stock-requests', StockRequestController::class);
+
+Route::post('/stock-requests/{id}/approve', [StockRequestController::class,'approve'])->name('stock-requests.approve');
+Route::post('/stock-requests/{id}/reject', [StockRequestController::class,'reject'])->name('stock-requests.reject');
+});
+Route::get('/my-stock-requests', [StockRequestController::class, 'myRequests'])
+    ->name('stock-requests.my');
+    Route::middleware(['auth'])->group(function () {
+
+    // Admin view
+    Route::get('/admin/stock-requests', [StockRequestController::class, 'adminIndex'])
+        ->name('stock-requests.admin');
+
+    // Approve / Reject
+    Route::post('/stock-requests/{id}/approve', [StockRequestController::class, 'approve'])
+        ->name('stock-requests.approve');
+
+    Route::post('/stock-requests/{id}/reject', [StockRequestController::class, 'reject'])
+        ->name('stock-requests.reject');
+
 });

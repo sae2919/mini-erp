@@ -12,9 +12,21 @@
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+
+                    {{-- ✅ ADDED STOCK REQUEST (SELLER) --}}
+                    <x-nav-link :href="route('stock-requests.create')" :active="request()->routeIs('stock-requests.create')">
+                        {{ __('Request Stock') }}
+                    </x-nav-link>
+
+                    {{-- ✅ ADDED STOCK REQUEST LIST (ADMIN) --}}
+                    <x-nav-link :href="route('stock-requests.index')" :active="request()->routeIs('stock-requests.index')">
+                        {{ __('Stock Requests') }}
+                    </x-nav-link>
+
                 </div>
             </div>
 
@@ -67,9 +79,20 @@
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
+
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+
+            {{-- ✅ ADDED MOBILE --}}
+            <x-responsive-nav-link :href="route('stock-requests.create')">
+                {{ __('Request Stock') }}
+            </x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('stock-requests.index')">
+                {{ __('Stock Requests') }}
+            </x-responsive-nav-link>
+
         </div>
 
         <!-- Responsive Settings Options -->

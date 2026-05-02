@@ -22,7 +22,7 @@
         <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto text-sm">
             @php
                 function navLink(string $route, string $icon, string $label): string {
-                    $active = request()->routeIs($route . '*')
+                    $active = request()->routeIs($route) || request()->routeIs($route . '*')
                         ? 'bg-indigo-600 text-white'
                         : 'text-gray-300 hover:bg-gray-700 hover:text-white';
                     return '<a href="' . route($route) . '" class="flex items-center gap-3 px-3 py-2 rounded-lg transition ' . $active . '">
@@ -38,6 +38,8 @@
             {!! navLink('seller-sales.index',     '💰', 'My Sales') !!}
             {!! navLink('seller-sales.create',    '➕', 'Record Sale') !!}
             {!! navLink('seller-dispatches.index','📦', 'My Dispatches') !!}
+            {!! navLink('stock-requests.create',  '📥', 'Request Stock') !!} {{-- ✅ ADDED --}}
+            {!! navLink('stock-requests.my',  '📄', 'My Requests') !!}
             @endrole
 
             {{-- ════════ STAFF MENU ════════ --}}
@@ -49,12 +51,16 @@
                 <div class="pt-3 pb-1 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Products</div>
                 @role('admin'){!! navLink('categories.index', '🏷️', 'Categories') !!}@endrole
                 {!! navLink('products.index', '📦', 'Products') !!}
+                @role('admin')
+                {!! navLink('stock-requests.index', '📋', 'Stock Requests') !!} {{-- ✅ ADDED --}}
+                @endrole
 
                 @hasanyrole('admin|manager|inventory_manager')
                 <div class="pt-3 pb-1 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Production</div>
                 {!! navLink('productions.index', '🏭', 'Production Batches') !!}
                 @hasanyrole('admin|manager')
                 {!! navLink('productions.create', '➕', 'Record Production') !!}
+                {!! navLink('stock-requests.admin', '📦', 'Stock Requests') !!}
                 @endhasanyrole
                 @endhasanyrole
 
@@ -79,6 +85,7 @@
                 {!! navLink('reports.best-products',      '📈', 'Best Products') !!}
                 {!! navLink('reports.seller-performance', '🏪', 'Seller Performance') !!}
                 {!! navLink('reports.stock-movement',     '📦', 'Stock Movement') !!}
+                
                 @endhasanyrole
 
                 @role('admin')
@@ -89,7 +96,11 @@
 
             @endhasanyrole
         </nav>
-
+@if(session('success'))
+    <div style="background:#d1fae5;color:#065f46;padding:10px;margin:10px;border-radius:6px;">
+        {{ session('success') }}
+    </div>
+@endif
         <div class="border-t border-gray-700 px-4 py-3">
             <div class="flex items-center justify-between">
                 <div class="min-w-0">
