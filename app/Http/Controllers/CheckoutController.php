@@ -67,6 +67,7 @@ class CheckoutController extends Controller
                     'shipping_email'   => $validated['shipping_email'],
                     'shipping_address' => $validated['shipping_address'],
                 ]);
+                
 
                 foreach ($cart as $id => $item) {
                     $product = Product::where('id', $id)->lockForUpdate()->first();

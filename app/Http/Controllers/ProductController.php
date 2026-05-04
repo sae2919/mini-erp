@@ -13,7 +13,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $products = Product::with('category')
-            ->when($request->search,      fn($q) => $q->search($request->search))
+            ->when($request->search, fn($q) => $q->search($request->search))
             ->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id))
             ->when($request->stock_status === 'low', fn($q) => $q->lowStock())
             ->when($request->stock_status === 'out', fn($q) => $q->where('stock_quantity', 0))
@@ -23,7 +23,6 @@ class ProductController extends Controller
 
         $categories = Category::orderBy('name')->get();
 
-        // Sales executives cannot see cost prices
         $showCostPrice = !auth()->user()->hasRole('sales_executive') &&
                          !auth()->user()->hasRole('viewer');
 
@@ -39,6 +38,7 @@ class ProductController extends Controller
     public function store(StoreProductRequest $request)
     {
         $product = Product::create($request->validated() + ['stock_quantity' => 0]);
+
         ActivityLogger::created($product, "Product \"{$product->name}\" created");
 
         return redirect()->route('products.index')
@@ -63,28 +63,55 @@ class ProductController extends Controller
     {
         $categories = Category::orderBy('name')->get();
 
-        // Inventory managers cannot edit price or cost_price
         $canEditPricing = auth()->user()->hasRole('admin');
 
         return view('products.edit', compact('product', 'categories', 'canEditPricing'));
     }
 
-    public function update(StoreProductRequest $request, Product $product)
-{
-    $data = collect($request->validated())->except('stock_quantity')->toArray();
+    public function update(Request $request, Product $product)
+    {
+        $request->validate([
+            'name' => 'required',
+            'sku' => 'required',
+            'category_id' => 'required',
 
-    if (!auth()->user()->hasRole('admin')) {
-        unset($data['price'], $data['cost_price'],
-              $data['dispatch_price'], $data['mrp'],
-              $data['commission_rate'], $data['production_cost']);
+            'price' => 'nullable|numeric',
+            'stock_quantity' => 'nullable|integer',
+            'add_stock' => 'nullable|integer|min:0',
+        ]);
+
+        // ✅ Update normal fields (NO stock overwrite)
+        $product->update([
+    'name' => $request->name,
+    'category_id' => $request->category_id,
+    'unit' => $request->unit,
+    'price' => $request->price ?? $product->price, // ✅ fix
+]);
+
+        // ✅ Add stock ONLY if provided
+        if ($request->filled('add_stock') && $request->add_stock > 0) {
+
+            // Increase stock
+            // Increase stock
+$product->increment('stock_quantity', $request->add_stock);
+
+// ✅ Direct stock movement log (FIX)
+\App\Models\StockMovement::create([
+    'product_id' => $product->id,
+    'type' => 'in',
+    'quantity' => $request->add_stock,
+    'reference_type' => 'manual',
+    'reference_id' => null,
+    'note' => 'Manual stock added',
+    'user_id' => auth()->id(),
+]);
+            // 🔥 Activity log (optional but good)
+            ActivityLogger::updated($product, "Stock increased by {$request->add_stock}");
+        }
+
+        return redirect()->route('products.index')
+            ->with('success', 'Stock updated!');
     }
-
-    $product->update($data);
-    ActivityLogger::updated($product, "Product \"{$product->name}\" updated");
-
-    return redirect()->route('products.index')
-        ->with('success', 'Product updated successfully.');
-}
 
     public function destroy(Product $product)
     {
@@ -94,9 +121,18 @@ class ProductController extends Controller
         }
 
         ActivityLogger::deleted($product, "Product \"{$product->name}\" deleted");
+
         $product->delete();
 
         return redirect()->route('products.index')
             ->with('success', 'Product deleted.');
     }
+    public function stockHistory(Product $product)
+{
+    $logs = \App\Models\StockMovement::where('product_id', $product->id)
+                ->latest()
+                ->get();
+
+    return view('products.stock-history', compact('product', 'logs'));
+}
 }

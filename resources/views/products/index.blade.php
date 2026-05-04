@@ -80,16 +80,29 @@
                     @endif
                     <td class="px-4 py-3">
                         <span class="px-2 py-1 text-xs font-semibold rounded-full
-                            {{ $product->stock_quantity == 0
-                                ? 'bg-red-100 text-red-700'
-                                : ($product->isLowStock() ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700') }}">
-                            {{ $product->stock_quantity }} {{ $product->unit }}
-                        </span>
+    {{ $product->stock_quantity == 0
+        ? 'bg-red-100 text-red-700'
+        : ($product->isLowStock() ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700') }}">
+
+    @if($product->stock_quantity == 0)
+        ❌ Out of Stock
+    @elseif($product->isLowStock())
+        ⚠️ Low ({{ $product->stock_quantity }} {{ $product->unit }})
+    @else
+        {{ $product->stock_quantity }} {{ $product->unit }}
+    @endif
+
+</span>
                     </td>
                     @role('admin|inventory_manager')
                     <td class="px-4 py-3 flex gap-2">
                         <a href="{{ route('products.edit', $product) }}"
                            class="text-xs text-indigo-600 hover:underline">Edit</a>
+
+                        {{-- 🔥 ADDED THIS --}}
+                        <a href="{{ route('products.history', $product) }}"
+                           class="text-xs text-gray-600 hover:underline">History</a>
+
                         @role('admin')
                         <form method="POST" action="{{ route('products.destroy', $product) }}"
                               onsubmit="return confirm('Delete this product?')">

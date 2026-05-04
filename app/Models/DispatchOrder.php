@@ -48,4 +48,8 @@ class DispatchOrder extends Model
             default   => 'bg-red-100 text-red-700',
         };
     }
+    public function stockRequest()
+{
+    return $this->belongsTo(\App\Models\StockRequest::class);
+}
 }

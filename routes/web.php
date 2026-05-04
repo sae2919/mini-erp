@@ -319,3 +319,7 @@ Route::get('/my-stock-requests', [StockRequestController::class, 'myRequests'])
         ->name('stock-requests.reject');
 
 });
+Route::post('stock-requests/{id}/pay', [StockRequestController::class, 'pay'])
+     ->name('stock-requests.pay');
+Route::get('/products/{product}/history', [ProductController::class, 'stockHistory'])
+    ->name('products.history');

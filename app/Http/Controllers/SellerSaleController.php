@@ -90,6 +90,7 @@ class SellerSaleController extends Controller
                     'commission_amount' => 0,
                     'company_amount'    => 0,
                 ]);
+                
 
                 foreach ($request->items as $item) {
                     $ss = SellerStock::where('seller_id',$seller->id)

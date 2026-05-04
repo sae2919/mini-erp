@@ -15,8 +15,15 @@ class Seller extends Model
     protected $fillable = [
         'user_id','name','phone','email','address',
         'region','credit_limit','balance_due','is_active','notes',
+        'commission_rate',
     ];
-    protected $casts = ['credit_limit'=>'decimal:2','balance_due'=>'decimal:2','is_active'=>'boolean'];
+
+    protected $casts = [
+        'credit_limit'    => 'decimal:2',
+        'balance_due'     => 'decimal:2',
+        'commission_rate' => 'decimal:2',
+        'is_active'       => 'boolean',
+    ];
 
     public function user(): BelongsTo         { return $this->belongsTo(User::class); }
     public function stocks(): HasMany         { return $this->hasMany(SellerStock::class); }

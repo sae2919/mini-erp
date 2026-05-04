@@ -42,6 +42,7 @@ class PaymentController extends Controller
             'paid_at'   => ['required', 'date'],
             'notes'     => ['nullable', 'string', 'max:500'],
         ]);
+        
 
         $totalPaid  = $sale->payments()->sum('amount');
         $remaining  = $sale->total_amount - $totalPaid;

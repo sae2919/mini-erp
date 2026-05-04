@@ -7,14 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class StockRequest extends Model
 {
     protected $fillable = [
-        'seller_id','product_id','quantity','status','note'
+        'seller_id', 'product_id', 'quantity',
+        'status', 'note', 'payment_status', 'payment_method',
     ];
 
-    public function seller() {
-        return $this->belongsTo(Seller::class);
-    }
-
-    public function product() {
-        return $this->belongsTo(Product::class);
-    }
+    public function seller()  { return $this->belongsTo(Seller::class); }
+    public function product() { return $this->belongsTo(Product::class); }
 }

@@ -1,102 +1,194 @@
 <?php
 
 namespace App\Http\Controllers;
+
+use App\Models\DispatchOrder;
 use App\Models\StockRequest;
 use App\Models\SellerStock;
 use App\Models\Product;
 use App\Models\Seller;
-
-use Illuminate\Support\Facades\DB;
-
-
-
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class StockRequestController extends Controller
 {
+    public function create()
+    {
+        $products = Product::where('stock_quantity', '>', 0)->get();
+        return view('stock-requests.create', compact('products'));
+    }
 
-public function create()
-{
-    $products = \App\Models\Product::where('stock_quantity', '>', 0)->get();
-
-    return view('stock-requests.create', compact('products'));
-}
     public function store(Request $request)
-{
-    $request->validate([
-        'product_id' => 'required|exists:products,id',
-        'quantity'   => 'required|integer|min:1'
-    ]);
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'quantity'   => 'required|integer|min:1',
+        ]);
 
-    $seller = Seller::where('user_id', auth()->id())->firstOrFail();
+        $seller = Seller::where('user_id', auth()->id())->firstOrFail();
 
-    StockRequest::create([
-        'seller_id'  => $seller->id,
-        'product_id' => $request->product_id,
-        'quantity'   => $request->quantity,
-    ]);
+        StockRequest::create([
+            'seller_id'      => $seller->id,
+            'product_id'     => $request->product_id,
+            'quantity'       => $request->quantity,
+            'status'         => 'pending',
+            'payment_status' => 'pending',
+        ]);
 
-    return back()->with('success','Stock request sent!');
-}
+        return back()->with('success', 'Stock request sent!');
+    }
 
+    // Admin: approve
+    public function approve($id)
+    {
+        $request = StockRequest::findOrFail($id);
 
-public function approve($id)
-{
-    $req = \App\Models\StockRequest::findOrFail($id);
+        // Prevent duplicate dispatch
+        $exists = DispatchOrder::where('stock_request_id', $request->id)->exists();
+        if ($exists) {
+            return back()->with('error', 'Dispatch already created');
+        }
 
-    DB::transaction(function () use ($req) {
+        // Update status
+        $request->update([
+            'status' => 'approved'
+        ]);
 
-        // ✅ update request status
-        $req->update(['status' => 'approved']);
+        // Get product
+        $product = Product::findOrFail($request->product_id);
 
-        // ✅ add stock to seller
-        SellerStock::updateOrCreate(
-            [
-                'seller_id' => $req->seller_id,
-                'product_id'=> $req->product_id
-            ],
-            [
-                'quantity' => DB::raw('quantity + '.$req->quantity)
-            ]
-        );
-    });
+        // Check stock
+        if ($product->stock_quantity < $request->quantity) {
+            return back()->with('error', 'Not enough stock available!');
+        }
 
-    return back()->with('success', '✅ Stock approved & added to seller!');
-}
-public function reject($id)
-{
-    $req = \App\Models\StockRequest::findOrFail($id);
+        // Reduce stock
+        $product->decrement('stock_quantity', $request->quantity);
 
-    $req->update(['status' => 'rejected']);
+        // Log stock OUT
+        if (function_exists('logStock')) {
+            logStock(
+                $product->id,
+                'out',
+                $request->quantity,
+                'dispatch',
+                $request->id,
+                'Stock dispatched'
+            );
+        }
 
-    return back()->with('success', '❌ Request rejected');
-}
-public function myRequests()
-{
-    $seller = \App\Models\Seller::where('user_id', auth()->id())->firstOrFail();
+        // Calculate total
+        $total = ($product->price ?? 0) * $request->quantity;
 
-    $requests = \App\Models\StockRequest::with('product')
-        ->where('seller_id', $seller->id)
-        ->latest()
-        ->get();
+        // Create dispatch (TEMP reference)
+        $dispatch = DispatchOrder::create([
+            'seller_id' => $request->seller_id,
+            'user_id' => auth()->id(),
+            'reference' => 'TEMP',
+            'dispatch_date' => now(),
+            'total_amount' => $total,
+            'paid_amount' => $total,
+            'balance_amount' => 0,
+            'payment_status' => 'paid',
+            'status' => 'dispatched',
+            'stock_request_id' => $request->id
+        ]);
 
-    return view('stock-requests.my', compact('requests'));
-}
-public function adminIndex()
-{
-    $requests = \App\Models\StockRequest::with('product','seller')
-        ->latest()
-        ->get();
+        // Update reference safely
+        $dispatch->update([
+            'reference' => 'DSP-' . str_pad($dispatch->id, 6, '0', STR_PAD_LEFT)
+        ]);
 
-    return view('stock_requests.admin', compact('requests'));
-}
-public function index()
-{
-    // Admin view (same as adminIndex)
-    $requests = \App\Models\StockRequest::with('product','seller')
-        ->latest()
-        ->get();
+        // 🔥 FIXED HERE ONLY
+        \App\Models\DispatchItem::create([
+            'dispatch_order_id' => $dispatch->id,
+            'product_id' => $product->id,
+            'quantity' => $request->quantity,
+            'dispatch_price' => $product->price, // ✅ FIX
+        ]);
 
-    return view('stock_requests.admin', compact('requests'));
-}
+        return back()->with('success', 'Approved, Stock Updated & Dispatch Created');
+    }
+
+    public function reject($id)
+    {
+        $req = StockRequest::findOrFail($id);
+        $req->update(['status' => 'rejected']);
+
+        return back()->with('success', '❌ Request rejected.');
+    }
+
+    public function myRequests()
+    {
+        $seller = Seller::where('user_id', auth()->id())->firstOrFail();
+
+        $requests = StockRequest::with('product')
+            ->where('seller_id', $seller->id)
+            ->latest()
+            ->get();
+
+        $totalAmount = $requests->sum(function ($r) {
+            return ($r->product->price ?? 0) * $r->quantity;
+        });
+
+        $paidAmount = $requests->where('payment_status', 'paid')->sum(function ($r) {
+            return ($r->product->price ?? 0) * $r->quantity;
+        });
+
+        $pendingAmount = $totalAmount - $paidAmount;
+
+        return view('stock-requests.my', compact(
+            'requests',
+            'totalAmount',
+            'paidAmount',
+            'pendingAmount'
+        ));
+    }
+
+    public function adminIndex()
+    {
+        $requests = StockRequest::with('product', 'seller')->latest()->get();
+        return view('stock_requests.admin', compact('requests'));
+    }
+
+    public function index()
+    {
+        $requests = StockRequest::with('product', 'seller')->latest()->get();
+        return view('stock_requests.admin', compact('requests'));
+    }
+
+    public function pay(Request $request, $id)
+    {
+        $request->validate([
+            'payment_method' => 'required|in:online,offline',
+        ]);
+
+        $seller = Seller::where('user_id', auth()->id())->firstOrFail();
+
+        $req = StockRequest::where('id', $id)
+            ->where('seller_id', $seller->id)
+            ->where('status', 'approved')
+            ->where('payment_status', 'pending')
+            ->firstOrFail();
+
+        DB::transaction(function () use ($req, $request) {
+
+            $req->update([
+                'payment_status' => 'paid',
+                'payment_method' => $request->payment_method,
+            ]);
+
+            SellerStock::updateOrCreate(
+                [
+                    'seller_id'  => $req->seller_id,
+                    'product_id' => $req->product_id,
+                ],
+                [
+                    'quantity' => DB::raw('quantity + ' . $req->quantity),
+                ]
+            );
+        });
+
+        return back()->with('success', '✅ Payment recorded & stock added!');
+    }
 }

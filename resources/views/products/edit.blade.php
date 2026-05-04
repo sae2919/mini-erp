@@ -145,7 +145,13 @@
             <textarea name="description" rows="3"
                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">{{ old('description', $product->description) }}</textarea>
         </div>
-
+        {{-- Add Stock --}}
+<div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Add Stock</label>
+    <input type="number" name="add_stock" min="0" placeholder="Enter quantity to add"
+           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
+    <p class="text-xs text-gray-400 mt-1">This will increase current stock</p>
+</div>
         {{-- Stock note --}}
         <div class="md:col-span-2 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-800">
             ⚠️ Stock (<strong>{{ $product->stock_quantity }} {{ $product->unit }}</strong>) is managed via Productions and Dispatches only.

@@ -30,6 +30,7 @@ class DispatchController extends Controller
         $totalPending = DispatchOrder::where('payment_status','!=','paid')
             ->where('status','!=','cancelled')
             ->sum(DB::raw('total_amount - paid_amount'));
+            
 
         return view('dispatches.index', compact('dispatches','sellers','totalValue','totalPending'));
     }

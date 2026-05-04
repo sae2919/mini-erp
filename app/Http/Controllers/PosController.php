@@ -36,6 +36,7 @@ class PosController extends Controller
             'items.*.selling_price'     => ['required', 'numeric', 'min:0.01'],
         ]);
 
+
         try {
             $sale = DB::transaction(function () use ($request) {
 
@@ -52,6 +53,7 @@ class PosController extends Controller
                     'status'        => 'completed',
                     'payment_status'=> 'paid',  // POS = paid immediately
                 ]);
+                
 
                 foreach ($request->items as $item) {
                     $product = Product::where('id', $item['product_id'])
