@@ -3,16 +3,20 @@
 @section('heading', 'Purchases')
 
 @section('header-actions')
+    {{-- FIX: create button should only show to roles that can create purchases --}}
+    @if(auth()->user()->hasAnyRole(['admin', 'inventory_manager']))
     <a href="{{ route('purchases.create') }}"
        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
         + New Purchase
     </a>
+    @endif
 @endsection
 
 @section('content')
 <div class="py-4 space-y-4">
 
-    <form method="GET" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-end">
+    <form method="GET"
+          class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-end">
         <div>
             <label class="block text-xs text-gray-500 mb-1">From</label>
             <input type="date" name="from" value="{{ request('from') }}"
@@ -28,13 +32,20 @@
             <select name="supplier_id" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <option value="">All Suppliers</option>
                 @foreach($suppliers as $s)
-                    <option value="{{ $s->id }}" {{ request('supplier_id') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
+                    <option value="{{ $s->id }}"
+                            {{ request('supplier_id') == $s->id ? 'selected' : '' }}>
+                        {{ $s->name }}
+                    </option>
                 @endforeach
             </select>
         </div>
-        <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition">Filter</button>
-        @if(request()->hasAny(['from','to','supplier_id']))
-            <a href="{{ route('purchases.index') }}" class="text-sm text-gray-500 hover:underline">Clear</a>
+        <button type="submit"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition">
+            Filter
+        </button>
+        @if(request()->hasAny(['from', 'to', 'supplier_id']))
+            <a href="{{ route('purchases.index') }}"
+               class="text-sm text-gray-500 hover:underline self-center">Clear</a>
         @endif
     </form>
 
@@ -54,32 +65,62 @@
                 @forelse($purchases as $purchase)
                 <tr class="hover:bg-gray-50 transition">
                     <td class="px-4 py-3 font-medium text-indigo-600">
-                        <a href="{{ route('purchases.show', $purchase) }}">{{ $purchase->reference }}</a>
+                        <a href="{{ route('purchases.show', $purchase) }}">
+                            {{ $purchase->reference }}
+                        </a>
                     </td>
-                    <td class="px-4 py-3 text-gray-600">{{ $purchase->purchase_date->format('d M Y') }}</td>
-                    <td class="px-4 py-3 text-gray-600">{{ $purchase->supplier->name }}</td>
-                    <td class="px-4 py-3 text-gray-600">{{ $purchase->items->count() }}</td>
-                    <td class="px-4 py-3 font-semibold text-blue-700">₹{{ number_format($purchase->total_amount, 2) }}</td>
-                    <td class="px-4 py-3 flex gap-2">
-                        <a href="{{ route('purchases.show', $purchase) }}"
-                           class="text-xs text-indigo-600 hover:underline">View</a>
-                        <form method="POST" action="{{ route('purchases.destroy', $purchase) }}"
-                              onsubmit="return confirm('Reverse this purchase? Stock will be decremented.')">
-                            @csrf @method('DELETE')
-                            <button class="text-xs text-red-500 hover:underline">Reverse</button>
-                        </form>
+                    <td class="px-4 py-3 text-gray-600">
+                        {{ $purchase->purchase_date->format('d M Y') }}
+                    </td>
+                    {{-- FIX: null-safe in case supplier was soft-deleted --}}
+                    <td class="px-4 py-3 text-gray-600">
+                        {{ $purchase->supplier?->name ?? '—' }}
+                    </td>
+                    <td class="px-4 py-3 text-gray-600">
+                        {{ $purchase->items->count() }}
+                    </td>
+                    <td class="px-4 py-3 font-semibold text-blue-700">
+                        ₹{{ number_format($purchase->total_amount, 2) }}
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                            <a href="{{ route('purchases.show', $purchase) }}"
+                               class="text-xs text-indigo-600 hover:underline">View</a>
+
+                            {{--
+                                FIX: Reverse was visible to all roles (including
+                                inventory_manager and viewer) who can view the index.
+                                They got a 403 on click. Admin only.
+                            --}}
+                            @if(auth()->user()->hasRole('admin'))
+                            <form method="POST" action="{{ route('purchases.destroy', $purchase) }}"
+                                  onsubmit="return confirm('Reverse purchase {{ $purchase->reference }}? Stock will be decremented.')">
+                                @csrf @method('DELETE')
+                                <button type="submit"
+                                        class="text-xs text-red-500 hover:underline">
+                                    Reverse
+                                </button>
+                            </form>
+                            @endif
+                        </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
                     <td colspan="6" class="px-4 py-8 text-center text-gray-400">
-                        No purchases yet. <a href="{{ route('purchases.create') }}" class="text-indigo-600">Create one</a>.
+                        No purchases yet.
+                        @if(auth()->user()->hasAnyRole(['admin', 'inventory_manager']))
+                            <a href="{{ route('purchases.create') }}"
+                               class="text-indigo-600">Create one</a>.
+                        @endif
                     </td>
                 </tr>
                 @endforelse
             </tbody>
         </table>
-        <div class="px-4 py-3 border-t border-gray-100">{{ $purchases->links() }}</div>
+        <div class="px-4 py-3 border-t border-gray-100">
+            {{ $purchases->links() }}
+        </div>
     </div>
 </div>
 @endsection

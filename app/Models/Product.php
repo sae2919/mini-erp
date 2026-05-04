@@ -23,12 +23,12 @@ class Product extends Model
         'low_stock_threshold',
         'unit',
         'description',
-        'image',
         'description_long',
+        'image',
         'is_featured',
         'is_available_online',
         'is_active',
-        // ── Manufacturer fields ──
+        // ── Manufacturer fields ────────────────────────────────────────────
         'production_cost',
         'dispatch_price',
         'mrp',
@@ -49,7 +49,7 @@ class Product extends Model
         'is_available_online' => 'boolean',
     ];
 
-    // ── Relationships ─────────────────────────────────────────────
+    // ─── Relationships ────────────────────────────────────────────
 
     public function category(): BelongsTo
     {
@@ -86,7 +86,15 @@ class Product extends Model
         return $this->hasMany(SellerStock::class);
     }
 
-    // ── Scopes ────────────────────────────────────────────────────
+    // FIX: missing relationship — ProductController::stockHistory() queries
+    // StockMovement by product_id. Without this the controller works but
+    // the model has no typed relationship, making eager loading impossible.
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class)->latest();
+    }
+
+    // ─── Scopes ───────────────────────────────────────────────────
 
     public function scopeActive(Builder $query): Builder
     {
@@ -113,7 +121,7 @@ class Product extends Model
                      ->where('stock_quantity', '>', 0);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────
+    // ─── Helpers ──────────────────────────────────────────────────
 
     public function isLowStock(): bool
     {
@@ -125,26 +133,26 @@ class Product extends Model
         return $this->stock_quantity >= $qty;
     }
 
-    // Old sales system: margin based on price vs cost_price
+    /** Old sales system: margin based on price vs cost_price */
     public function profitMargin(): float
     {
         if ($this->price == 0) return 0;
         return round((($this->price - $this->cost_price) / $this->price) * 100, 2);
     }
 
-    // Manufacturer system: commission per unit
+    /** Manufacturer system: commission earned per unit by seller */
     public function commissionPerUnit(): float
     {
         return round(($this->dispatch_price ?? 0) * (($this->commission_rate ?? 0) / 100), 2);
     }
 
-    // Manufacturer system: margin per unit (dispatch - production cost)
+    /** Manufacturer system: margin per unit (dispatch price minus production cost) */
     public function manufacturerMargin(): float
     {
         return ($this->dispatch_price ?? 0) - ($this->production_cost ?? 0);
     }
 
-    // Product image URL with fallback
+    /** Product image URL with placeholder fallback */
     public function imageUrl(): string
     {
         if ($this->image && file_exists(public_path('storage/' . $this->image))) {

@@ -7,6 +7,24 @@
 
 @section('content')
 <div class="py-4 max-w-4xl">
+
+    {{--
+        FIX: error display block was completely missing.
+        Without this, StoreSaleRequest failures and InventoryService
+        ValidationExceptions (e.g. insufficient stock) are swallowed silently.
+        The user sees the blank form again with no explanation.
+    --}}
+    @if($errors->any())
+    <div class="mb-4 bg-red-50 border border-red-200 rounded-xl px-5 py-4">
+        <p class="text-sm font-semibold text-red-700 mb-2">Please fix the following errors:</p>
+        <ul class="list-disc list-inside space-y-1">
+            @foreach($errors->all() as $error)
+                <li class="text-sm text-red-600">{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+
 <form method="POST" action="{{ route('sales.store') }}" id="sale-form">
 @csrf
 
@@ -18,7 +36,9 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Sale Date *</label>
             <input type="date" name="sale_date" value="{{ old('sale_date', date('Y-m-d')) }}"
                    max="{{ date('Y-m-d') }}" required
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent
+                          @error('sale_date') border-red-400 @enderror">
+            @error('sale_date')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Customer</label>
@@ -34,8 +54,8 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
-            <input type="text" name="customer_name" id="customer-name" value="{{ old('customer_name') }}"
-                   placeholder="Or type manually"
+            <input type="text" name="customer_name" id="customer-name"
+                   value="{{ old('customer_name') }}" placeholder="Or type manually"
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
         </div>
         <div>
@@ -63,6 +83,13 @@
             </button>
         </div>
 
+        {{-- Items-level error (e.g. insufficient stock from InventoryService) --}}
+        @error('items')
+        <div class="mb-3 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-600">
+            {{ $message }}
+        </div>
+        @enderror
+
         <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
@@ -89,7 +116,9 @@
 
     <div class="px-6 py-4 flex justify-end gap-3">
         <a href="{{ route('sales.index') }}"
-           class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancel</a>
+           class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+            Cancel
+        </a>
         <button type="submit"
                 class="px-6 py-2 text-sm bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition">
             💰 Create Sale
@@ -102,9 +131,16 @@
 
 @push('scripts')
 <script>
+// Product data — cost_price deliberately excluded from frontend
 const products = [
     @foreach($products as $p)
-    { id: {{ $p->id }}, name: "{{ addslashes($p->name) }}", sku: "{{ $p->sku }}", stock: {{ $p->stock_quantity }}, price: {{ $p->price }} },
+    {
+        id:    {{ $p->id }},
+        name:  "{{ addslashes($p->name) }}",
+        sku:   "{{ $p->sku }}",
+        stock: {{ $p->stock_quantity }},
+        price: {{ $p->price ?? 0 }},
+    },
     @endforeach
 ];
 
@@ -124,21 +160,29 @@ function addRow(preset = {}) {
     tr.className = 'item-row border-b border-gray-50';
     tr.innerHTML = `
         <td class="py-2 pr-2">
-            <select name="items[${idx}][product_id]" class="product-select w-full border border-gray-300 rounded px-2 py-1.5 text-sm" required>
+            <select name="items[${idx}][product_id]"
+                    class="product-select w-full border border-gray-300 rounded px-2 py-1.5 text-sm" required>
                 <option value="">-- Select --</option>${opts}
             </select>
         </td>
         <td class="py-2 pr-2"><span class="stock-badge text-xs text-gray-500">—</span></td>
         <td class="py-2 pr-2">
-            <input type="number" name="items[${idx}][quantity]" class="qty-input w-20 border border-gray-300 rounded px-2 py-1.5 text-sm"
+            <input type="number" name="items[${idx}][quantity]"
+                   class="qty-input w-20 border border-gray-300 rounded px-2 py-1.5 text-sm"
                    min="1" value="${preset.qty || 1}" required>
         </td>
         <td class="py-2 pr-2">
-            <input type="number" name="items[${idx}][selling_price]" class="price-input w-24 border border-gray-300 rounded px-2 py-1.5 text-sm"
+            <input type="number" name="items[${idx}][selling_price]"
+                   class="price-input w-24 border border-gray-300 rounded px-2 py-1.5 text-sm"
                    step="0.01" min="0.01" value="${preset.price || ''}" required>
         </td>
-        <td class="py-2 pr-2"><span class="subtotal text-sm font-medium text-gray-700">₹0.00</span></td>
-        <td class="py-2"><button type="button" class="remove-row text-red-400 hover:text-red-600 text-lg font-bold leading-none">×</button></td>
+        <td class="py-2 pr-2">
+            <span class="subtotal text-sm font-medium text-gray-700">₹0.00</span>
+        </td>
+        <td class="py-2">
+            <button type="button"
+                    class="remove-row text-red-400 hover:text-red-600 text-lg font-bold leading-none">×</button>
+        </td>
     `;
 
     document.getElementById('items-body').appendChild(tr);
@@ -165,7 +209,8 @@ function bindRow(tr) {
         const opt   = sel.options[sel.selectedIndex];
         const stock = parseInt(opt.dataset.stock || 0);
         badge.textContent = opt.value ? stock + ' in stock' : '—';
-        badge.className   = 'stock-badge text-xs font-medium ' + (stock > 0 ? 'text-green-600' : 'text-red-600');
+        badge.className   = 'stock-badge text-xs font-medium '
+            + (stock > 0 ? 'text-green-600' : 'text-red-600');
         if (!price.value && opt.dataset.price) price.value = opt.dataset.price;
         qty.max = stock;
         recalc();
@@ -173,19 +218,25 @@ function bindRow(tr) {
 
     qty.addEventListener('input', recalc);
     price.addEventListener('input', recalc);
-    tr.querySelector('.remove-row').addEventListener('click', () => { tr.remove(); updateTotal(); });
+    tr.querySelector('.remove-row').addEventListener('click', () => {
+        tr.remove();
+        updateTotal();
+    });
 }
 
 function updateTotal() {
     let t = 0;
-    document.querySelectorAll('.subtotal').forEach(el => t += parseFloat(el.textContent.replace('₹','')) || 0);
+    document.querySelectorAll('.subtotal').forEach(el => {
+        t += parseFloat(el.textContent.replace('₹', '')) || 0;
+    });
     document.getElementById('grand-total').textContent = '₹' + t.toFixed(2);
 }
 
-// ── SKU Search ──────────────────────────────────────────────────
-document.getElementById('sku-search').addEventListener('keydown', function(e) {
+// ── SKU Search ───────────────────────────────────────────────────
+document.getElementById('sku-search').addEventListener('keydown', function (e) {
     if (e.key !== 'Enter') return;
     e.preventDefault();
+
     const sku     = this.value.trim().toLowerCase();
     const product = skuMap[sku];
     const result  = document.getElementById('sku-result');
@@ -195,7 +246,6 @@ document.getElementById('sku-search').addEventListener('keydown', function(e) {
         result.className   = 'text-xs text-red-500';
         return;
     }
-
     if (product.stock === 0) {
         result.textContent = '⚠️ ' + product.name + ' is out of stock';
         result.className   = 'text-xs text-yellow-600';
@@ -209,28 +259,31 @@ document.getElementById('sku-search').addEventListener('keydown', function(e) {
     setTimeout(() => result.textContent = '', 3000);
 });
 
-// ── Customer auto-fill name ─────────────────────────────────────
-document.getElementById('customer-select').addEventListener('change', function() {
+// ── Customer auto-fill name ──────────────────────────────────────
+document.getElementById('customer-select').addEventListener('change', function () {
     const nameInput = document.getElementById('customer-name');
-    const text = this.options[this.selectedIndex].text;
+    const text      = this.options[this.selectedIndex].text;
     if (this.value) {
-        nameInput.value = text.split(' — ')[0];
+        nameInput.value    = text.split(' — ')[0];
         nameInput.readOnly = true;
         nameInput.classList.add('bg-gray-50');
     } else {
-        nameInput.value = '';
+        nameInput.value    = '';
         nameInput.readOnly = false;
         nameInput.classList.remove('bg-gray-50');
     }
 });
 
+// ── Submit guard ─────────────────────────────────────────────────
 document.getElementById('add-item').addEventListener('click', () => addRow());
 document.getElementById('sale-form').addEventListener('submit', e => {
     if (!document.querySelectorAll('.item-row').length) {
-        e.preventDefault(); alert('Add at least one product.');
+        e.preventDefault();
+        alert('Add at least one product before submitting.');
     }
 });
 
+// Start with one empty row
 addRow();
 </script>
 @endpush

@@ -3,10 +3,20 @@
 @section('heading', 'Sales')
 
 @section('header-actions')
+    @can('create', App\Models\Sale::class)
     <a href="{{ route('sales.create') }}"
        class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition">
         + New Sale
     </a>
+    @else
+    {{-- Fallback: role check if Policy not set up --}}
+    @if(auth()->user()->hasAnyRole(['admin', 'sales_executive']))
+    <a href="{{ route('sales.create') }}"
+       class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition">
+        + New Sale
+    </a>
+    @endif
+    @endcan
 @endsection
 
 @section('content')
@@ -24,11 +34,14 @@
             <input type="date" name="to" value="{{ request('to') }}"
                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
         </div>
-        <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition">
+        <button type="submit"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition">
             Filter
         </button>
-        @if(request()->hasAny(['from','to']))
-            <a href="{{ route('sales.index') }}" class="text-sm text-gray-500 hover:underline">Clear</a>
+        @if(request()->hasAny(['from', 'to']))
+            <a href="{{ route('sales.index') }}" class="text-sm text-gray-500 hover:underline self-center">
+                Clear
+            </a>
         @endif
     </form>
 
@@ -51,24 +64,53 @@
                     <td class="px-4 py-3 font-medium text-indigo-600">
                         <a href="{{ route('sales.show', $sale) }}">{{ $sale->reference }}</a>
                     </td>
-                    <td class="px-4 py-3 text-gray-600">{{ $sale->sale_date->format('d M Y') }}</td>
-                    <td class="px-4 py-3 text-gray-600">{{ $sale->customer_name ?? 'Walk-in' }}</td>
+                    <td class="px-4 py-3 text-gray-600">
+                        {{ $sale->sale_date->format('d M Y') }}
+                    </td>
+                    {{--
+                        FIX: was $sale->customer_name ?? 'Walk-in'
+                        This skipped linked Customer model names entirely.
+                        The model has a getCustomerDisplayAttribute() accessor
+                        that handles the 3-way fallback correctly — use it.
+                    --}}
+                    <td class="px-4 py-3 text-gray-600">
+                        {{ $sale->customer_display }}
+                    </td>
                     <td class="px-4 py-3 text-gray-600">{{ $sale->items->count() }}</td>
-                    <td class="px-4 py-3 font-semibold text-green-700">₹{{ number_format($sale->total_amount, 2) }}</td>
-                    <td class="px-4 py-3 flex gap-2">
-                        <a href="{{ route('sales.show', $sale) }}"
-                           class="text-xs text-indigo-600 hover:underline">View</a>
-                        <form method="POST" action="{{ route('sales.destroy', $sale) }}"
-                              onsubmit="return confirm('Cancel this sale? Stock will be restored.')">
-                            @csrf @method('DELETE')
-                            <button class="text-xs text-red-500 hover:underline">Cancel</button>
-                        </form>
+                    <td class="px-4 py-3 font-semibold text-green-700">
+                        ₹{{ number_format($sale->total_amount, 2) }}
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                            <a href="{{ route('sales.show', $sale) }}"
+                               class="text-xs text-indigo-600 hover:underline">View</a>
+
+                            {{--
+                                FIX: Cancel button was visible to ALL roles (inventory_manager,
+                                viewer, etc.) who can see the index but cannot delete sales.
+                                They got a 403 with no explanation on click.
+                                Now only shown to admin.
+                            --}}
+                            @if(auth()->user()->hasRole('admin'))
+                            <form method="POST" action="{{ route('sales.destroy', $sale) }}"
+                                  onsubmit="return confirm('Cancel sale {{ $sale->reference }}? Stock will be restored.')">
+                                @csrf @method('DELETE')
+                                <button type="submit"
+                                        class="text-xs text-red-500 hover:underline">
+                                    Cancel
+                                </button>
+                            </form>
+                            @endif
+                        </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
                     <td colspan="6" class="px-4 py-8 text-center text-gray-400">
-                        No sales found. <a href="{{ route('sales.create') }}" class="text-indigo-600">Create one</a>.
+                        No sales found.
+                        @if(auth()->user()->hasAnyRole(['admin', 'sales_executive']))
+                            <a href="{{ route('sales.create') }}" class="text-indigo-600">Create one</a>.
+                        @endif
                     </td>
                 </tr>
                 @endforelse

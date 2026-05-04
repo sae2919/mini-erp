@@ -12,7 +12,7 @@
         👁 Preview
     </a>
     @role('admin|sales_executive')
-    @if(!in_array($sale->status, ['cancelled']))
+    @if(!in_array($sale->status ?? '', ['cancelled']))
     <a href="{{ route('returns.create', $sale) }}"
        class="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-200 transition">
         ↩️ Return
@@ -23,33 +23,47 @@
 @endsection
 
 @section('content')
+{{--
+    FIX: $showCostPrice must be passed from SaleController::show().
+    Add this to SaleController::show():
+        $showCostPrice = !auth()->user()->hasAnyRole(['sales_executive', 'viewer']);
+        return view('sales.show', compact('sale', 'showCostPrice'));
+    Without it, cost and profit data is visible to every role.
+--}}
+@php $showCostPrice = $showCostPrice ?? !auth()->user()->hasAnyRole(['sales_executive', 'viewer']); @endphp
+
 <div class="py-4 space-y-5">
 
-    {{-- ── Sale Details ──────────────────────────────────────── --}}
+    {{-- ── Sale Details ─────────────────────────────────────── --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 md:col-span-2">
             <h2 class="font-semibold text-gray-800 mb-4">Sale Details</h2>
             <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <dt class="text-gray-500">Reference</dt>
                 <dd class="font-mono font-medium">{{ $sale->reference }}</dd>
+
                 <dt class="text-gray-500">Customer</dt>
                 <dd>
                     @if($sale->customer)
-                        <a href="{{ route('customers.show', $sale->customer) }}" class="text-indigo-600 hover:underline">
+                        <a href="{{ route('customers.show', $sale->customer) }}"
+                           class="text-indigo-600 hover:underline">
                             {{ $sale->customer->name }}
                         </a>
                     @else
                         {{ $sale->customer_name ?: 'Walk-in' }}
                     @endif
                 </dd>
+
                 <dt class="text-gray-500">Date</dt>
                 <dd>{{ $sale->sale_date->format('d M Y') }}</dd>
+
                 <dt class="text-gray-500">Order Type</dt>
                 <dd>
                     <span class="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600 capitalize">
                         {{ $sale->order_type ?? 'offline' }}
                     </span>
                 </dd>
+
                 @if(isset($sale->status))
                 <dt class="text-gray-500">Status</dt>
                 <dd>
@@ -58,6 +72,7 @@
                     </span>
                 </dd>
                 @endif
+
                 <dt class="text-gray-500">Notes</dt>
                 <dd>{{ $sale->notes ?: '—' }}</dd>
             </dl>
@@ -66,30 +81,47 @@
         <div class="space-y-3">
             <div class="bg-green-50 border border-green-100 rounded-xl p-5 text-center">
                 <p class="text-sm text-green-600 font-medium">Total</p>
-                <p class="text-3xl font-bold text-green-800 mt-1">₹{{ number_format($sale->total_amount, 2) }}</p>
+                <p class="text-3xl font-bold text-green-800 mt-1">
+                    ₹{{ number_format($sale->total_amount, 2) }}
+                </p>
+                {{-- FIX: profit only visible to roles that can see cost data --}}
+                @if($showCostPrice)
                 <p class="text-sm text-indigo-600 font-medium mt-1">
                     Profit: ₹{{ number_format($sale->totalProfit(), 2) }}
                 </p>
+                @endif
             </div>
 
             {{-- Payment Status --}}
             @if(isset($sale->payment_status))
-            @php $paid = $sale->payments->sum('amount') ?? 0; $balance = $sale->total_amount - $paid; @endphp
+            @php
+                // FIX: use already-loaded relationship instead of re-querying.
+                // SaleController::show() should eager-load payments.
+                $payments  = $sale->relationLoaded('payments') ? $sale->payments : $sale->payments()->get();
+                $paid      = $payments->sum('amount');
+                $balance   = $sale->total_amount - $paid;
+            @endphp
             <div class="bg-white border border-gray-100 rounded-xl p-4 text-center">
                 <p class="text-xs text-gray-500 font-medium mb-1">Payment Status</p>
                 <span class="px-3 py-1 text-sm font-semibold rounded-full
-                    {{ $sale->payment_status === 'paid' ? 'bg-green-100 text-green-700' : ($sale->payment_status === 'partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }}">
+                    {{ $sale->payment_status === 'paid'
+                        ? 'bg-green-100 text-green-700'
+                        : ($sale->payment_status === 'partial'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-red-100 text-red-700') }}">
                     {{ ucfirst($sale->payment_status ?? 'unpaid') }}
                 </span>
                 @if($balance > 0)
-                <p class="text-sm text-red-600 mt-2 font-medium">Balance: ₹{{ number_format($balance, 2) }}</p>
+                <p class="text-sm text-red-600 mt-2 font-medium">
+                    Balance: ₹{{ number_format($balance, 2) }}
+                </p>
                 @endif
             </div>
             @endif
         </div>
     </div>
 
-    {{-- ── Line Items ────────────────────────────────────────── --}}
+    {{-- ── Line Items ───────────────────────────────────────── --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800">Line Items</div>
         <table class="w-full text-sm">
@@ -99,57 +131,96 @@
                     <th class="px-4 py-2">SKU</th>
                     <th class="px-4 py-2">Qty</th>
                     <th class="px-4 py-2">Price</th>
+                    {{-- FIX: Cost and Profit are financial data — hidden from
+                         sales_executive and viewer per role specification --}}
+                    @if($showCostPrice)
                     <th class="px-4 py-2">Cost</th>
+                    @endif
                     <th class="px-4 py-2">Subtotal</th>
+                    @if($showCostPrice)
                     <th class="px-4 py-2">Profit</th>
+                    @endif
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
                 @foreach($sale->items as $item)
                 <tr>
-                    <td class="px-4 py-3 font-medium text-gray-800">{{ $item->product->name }}</td>
-                    <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ $item->product->sku }}</td>
+                    <td class="px-4 py-3 font-medium text-gray-800">
+                        {{ $item->product?->name ?? '—' }}
+                    </td>
+                    <td class="px-4 py-3 font-mono text-xs text-gray-500">
+                        {{ $item->product?->sku ?? '—' }}
+                    </td>
                     <td class="px-4 py-3">{{ $item->quantity }}</td>
-                    <td class="px-4 py-3 text-green-700">₹{{ number_format($item->selling_price, 2) }}</td>
-                    <td class="px-4 py-3 text-gray-500">₹{{ number_format($item->cost_price, 2) }}</td>
-                    <td class="px-4 py-3 font-semibold">₹{{ number_format($item->subtotal, 2) }}</td>
-                    <td class="px-4 py-3 font-semibold text-indigo-700">₹{{ number_format($item->profit(), 2) }}</td>
+                    <td class="px-4 py-3 text-green-700">
+                        ₹{{ number_format($item->selling_price, 2) }}
+                    </td>
+                    @if($showCostPrice)
+                    <td class="px-4 py-3 text-gray-500">
+                        ₹{{ number_format($item->cost_price, 2) }}
+                    </td>
+                    @endif
+                    <td class="px-4 py-3 font-semibold">
+                        ₹{{ number_format($item->subtotal ?? ($item->selling_price * $item->quantity), 2) }}
+                    </td>
+                    @if($showCostPrice)
+                    <td class="px-4 py-3 font-semibold text-indigo-700">
+                        ₹{{ number_format($item->profit ?? (($item->selling_price - $item->cost_price) * $item->quantity), 2) }}
+                    </td>
+                    @endif
                 </tr>
                 @endforeach
             </tbody>
             <tfoot class="border-t-2 border-gray-200">
                 <tr>
-                    <td colspan="5" class="px-4 py-3 text-right font-bold text-gray-700">Total</td>
-                    <td class="px-4 py-3 font-bold text-green-800">₹{{ number_format($sale->total_amount, 2) }}</td>
-                    <td class="px-4 py-3 font-bold text-indigo-800">₹{{ number_format($sale->totalProfit(), 2) }}</td>
+                    <td colspan="{{ $showCostPrice ? 5 : 3 }}"
+                        class="px-4 py-3 text-right font-bold text-gray-700">Total</td>
+                    <td class="px-4 py-3 font-bold text-green-800">
+                        ₹{{ number_format($sale->total_amount, 2) }}
+                    </td>
+                    @if($showCostPrice)
+                    <td class="px-4 py-3 font-bold text-indigo-800">
+                        ₹{{ number_format($sale->totalProfit(), 2) }}
+                    </td>
+                    @endif
                 </tr>
             </tfoot>
         </table>
     </div>
 
-    {{-- ── Payment History + Record Payment ─────────────────── --}}
+    {{-- ── Payment History + Record Payment ────────────────── --}}
     @role('admin|sales_executive')
-    @php $payments = $sale->payments ?? collect(); $paid = $payments->sum('amount'); $balance = $sale->total_amount - $paid; @endphp
+    @php
+        $payments = $sale->relationLoaded('payments') ? $sale->payments : $sale->payments()->get();
+        $paid     = $payments->sum('amount');
+        $balance  = $sale->total_amount - $paid;
+    @endphp
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-        {{-- Payment History --}}
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
-            <div class="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800">💳 Payment History</div>
+            <div class="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800">
+                💳 Payment History
+            </div>
             @forelse($payments as $payment)
             <div class="flex items-center justify-between px-5 py-3 border-b border-gray-50">
                 <div>
                     <p class="text-sm font-medium text-gray-800">
                         {{ \App\Models\Payment::methods()[$payment->method] ?? $payment->method }}
                     </p>
-                    <p class="text-xs text-gray-400">{{ $payment->paid_at->format('d M Y') }} {{ $payment->reference ? '· '.$payment->reference : '' }}</p>
+                    <p class="text-xs text-gray-400">
+                        {{ \Carbon\Carbon::parse($payment->paid_at)->format('d M Y') }}
+                        {{ $payment->reference ? '· ' . $payment->reference : '' }}
+                    </p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="font-semibold text-green-700">₹{{ number_format($payment->amount, 2) }}</span>
+                    <span class="font-semibold text-green-700">
+                        ₹{{ number_format($payment->amount, 2) }}
+                    </span>
                     <form method="POST" action="{{ route('payments.destroy', $payment) }}"
                           onsubmit="return confirm('Delete this payment?')">
                         @csrf @method('DELETE')
-                        <button class="text-xs text-red-400 hover:text-red-600">✕</button>
+                        <button type="submit" class="text-xs text-red-400 hover:text-red-600">✕</button>
                     </form>
                 </div>
             </div>
@@ -171,28 +242,32 @@
             @endif
         </div>
 
-        {{-- Record Payment --}}
         @if($balance > 0.01)
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
-            <div class="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800">Record Payment</div>
+            <div class="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800">
+                Record Payment
+            </div>
             <form method="POST" action="{{ route('payments.store', $sale) }}" class="p-5 space-y-4">
                 @csrf
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Amount (₹) *</label>
                         <input type="number" name="amount" step="0.01" min="0.01"
-                               max="{{ $balance }}" value="{{ number_format($balance, 2, '.', '') }}"
-                               required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400">
+                               max="{{ $balance }}"
+                               value="{{ number_format($balance, 2, '.', '') }}"
+                               required
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400">
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Date *</label>
-                        <input type="date" name="paid_at" value="{{ date('Y-m-d') }}"
-                               required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400">
+                        <input type="date" name="paid_at" value="{{ date('Y-m-d') }}" required
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400">
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs text-gray-500 mb-1">Method *</label>
-                    <select name="method" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <select name="method" required
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                         @foreach(\App\Models\Payment::methods() as $key => $label)
                             <option value="{{ $key }}">{{ $label }}</option>
                         @endforeach
@@ -218,17 +293,19 @@
             </div>
         </div>
         @endif
+
     </div>
     @endrole
 
-    {{-- Cancel button --}}
+    {{-- Cancel button — admin only --}}
     @role('admin')
     @if(!in_array($sale->status ?? '', ['cancelled']))
     <div class="flex justify-end">
         <form method="POST" action="{{ route('sales.destroy', $sale) }}"
               onsubmit="return confirm('Cancel this sale? Stock will be restored.')">
             @csrf @method('DELETE')
-            <button class="px-4 py-2 text-sm bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition">
+            <button type="submit"
+                    class="px-4 py-2 text-sm bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition">
                 ❌ Cancel Sale
             </button>
         </form>

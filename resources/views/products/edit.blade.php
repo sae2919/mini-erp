@@ -17,7 +17,8 @@
         <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
             <input type="text" name="name" value="{{ old('name', $product->name) }}" required
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent
+                          @error('name') border-red-400 @enderror">
             @error('name')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
         </div>
 
@@ -25,24 +26,32 @@
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">SKU *</label>
             <input type="text" name="sku" value="{{ old('sku', $product->sku) }}" required
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent
+                          @error('sku') border-red-400 @enderror">
+            @error('sku')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
         </div>
 
         {{-- Category --}}
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
             <select name="category_id" required
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent
+                           @error('category_id') border-red-400 @enderror">
                 @foreach($categories as $cat)
                     <option value="{{ $cat->id }}" {{ old('category_id', $product->category_id) == $cat->id ? 'selected' : '' }}>
                         {{ $cat->name }}
                     </option>
                 @endforeach
             </select>
+            @error('category_id')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
         </div>
 
         {{-- ── PRICING SECTION ────────────────────────────── --}}
-        @if($canEditPricing)
+        {{--
+            FIX: variable was $canEditPricing but controller passes $canEditCostPrice.
+            Renamed throughout this view to match the controller.
+        --}}
+        @if($canEditCostPrice)
 
         {{-- Production Cost --}}
         <div>
@@ -56,7 +65,7 @@
 
         {{-- Dispatch Price --}}
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Dispatch Price (₹) *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Dispatch Price (₹)</label>
             <input type="number" name="dispatch_price"
                    value="{{ old('dispatch_price', $product->dispatch_price ?? 0) }}"
                    step="0.01" min="0" id="dispatch-price"
@@ -66,7 +75,7 @@
 
         {{-- MRP --}}
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">MRP (₹) *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">MRP (₹)</label>
             <input type="number" name="mrp"
                    value="{{ old('mrp', $product->mrp ?? 0) }}"
                    step="0.01" min="0" id="mrp"
@@ -89,27 +98,37 @@
             <p class="text-xs font-semibold text-indigo-700 mb-1">💰 Commission Preview</p>
             <p class="text-sm text-indigo-800">
                 Per unit commission =
-                <span id="comm-preview" class="font-bold">₹{{ number_format(($product->dispatch_price ?? 0) * (($product->commission_rate ?? 0) / 100), 2) }}</span>
+                <span id="comm-preview" class="font-bold">
+                    ₹{{ number_format(($product->dispatch_price ?? 0) * (($product->commission_rate ?? 0) / 100), 2) }}
+                </span>
                 <span class="text-xs text-indigo-500 ml-2">(Dispatch Price × Commission Rate)</span>
             </p>
         </div>
 
-        {{-- Old price fields --}}
+        {{-- Selling Price --}}
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price (₹)</label>
-            <input type="number" name="price" value="{{ old('price', $product->price) }}" step="0.01" min="0"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
+            <input type="number" name="price" value="{{ old('price', $product->price) }}"
+                   step="0.01" min="0"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent
+                          @error('price') border-red-400 @enderror">
+            @error('price')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
             <p class="text-xs text-gray-400 mt-1">Legacy field (for old sales system)</p>
         </div>
+
+        {{-- Cost Price — admin only, server-side guarded in UpdateProductRequest --}}
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Cost Price (₹)</label>
-            <input type="number" name="cost_price" value="{{ old('cost_price', $product->cost_price) }}" step="0.01" min="0"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
+            <input type="number" name="cost_price" value="{{ old('cost_price', $product->cost_price) }}"
+                   step="0.01" min="0"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent
+                          @error('cost_price') border-red-400 @enderror">
+            @error('cost_price')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
             <p class="text-xs text-gray-400 mt-1">Legacy field (for old sales system)</p>
         </div>
 
         @else
-        {{-- Non-admin sees locked pricing --}}
+        {{-- Non-admin sees read-only pricing summary --}}
         <div class="md:col-span-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
             <p class="text-xs text-gray-500 mb-2 font-medium">Pricing (Admin only)</p>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -125,8 +144,8 @@
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Unit *</label>
             <select name="unit" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                @foreach(['pcs','kg','litre','box','ream','dozen','metre'] as $unit)
-                    <option value="{{ $unit }}" {{ old('unit', $product->unit) == $unit ? 'selected' : '' }}>{{ $unit }}</option>
+                @foreach(['pcs','kg','litre','box','ream','dozen','metre'] as $u)
+                    <option value="{{ $u }}" {{ old('unit', $product->unit) == $u ? 'selected' : '' }}>{{ $u }}</option>
                 @endforeach
             </select>
         </div>
@@ -145,17 +164,33 @@
             <textarea name="description" rows="3"
                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">{{ old('description', $product->description) }}</textarea>
         </div>
-        {{-- Add Stock --}}
-<div>
-    <label class="block text-sm font-medium text-gray-700 mb-1">Add Stock</label>
-    <input type="number" name="add_stock" min="0" placeholder="Enter quantity to add"
-           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
-    <p class="text-xs text-gray-400 mt-1">This will increase current stock</p>
-</div>
-        {{-- Stock note --}}
-        <div class="md:col-span-2 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-800">
-            ⚠️ Stock (<strong>{{ $product->stock_quantity }} {{ $product->unit }}</strong>) is managed via Productions and Dispatches only.
+
+        {{-- ── STOCK ADJUSTMENT SECTION ────────────────────── --}}
+        {{--
+            Stock goes through InventoryService::adjustStock() in the controller.
+            Direct stock_quantity edits are blocked server-side.
+        --}}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Add Stock</label>
+            <input type="number" name="add_stock" value="{{ old('add_stock') }}"
+                   min="1" placeholder="Enter quantity to add"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent
+                          @error('add_stock') border-red-400 @enderror">
+            @error('add_stock')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+            <p class="text-xs text-gray-400 mt-1">Current stock: <strong>{{ $product->stock_quantity }} {{ $product->unit }}</strong></p>
         </div>
+
+        {{-- FIX: added stock_notes field — required by UpdateProductRequest when add_stock is present --}}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Stock Adjustment Note</label>
+            <input type="text" name="stock_notes" value="{{ old('stock_notes') }}"
+                   placeholder="e.g. Opening stock, correction, return"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent
+                          @error('stock_notes') border-red-400 @enderror">
+            @error('stock_notes')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+            <p class="text-xs text-gray-400 mt-1">Required when adding stock</p>
+        </div>
+
     </div>
 
     <div class="px-6 py-4 flex justify-end gap-3">
@@ -172,13 +207,12 @@
 @endsection
 
 @push('scripts')
-@if($canEditPricing)
+@if($canEditCostPrice)
 <script>
 function updatePreview() {
     const dispatch = parseFloat(document.getElementById('dispatch-price').value) || 0;
     const rate     = parseFloat(document.getElementById('comm-rate').value) || 0;
-    const comm     = (dispatch * rate / 100).toFixed(2);
-    document.getElementById('comm-preview').textContent = '₹' + comm;
+    document.getElementById('comm-preview').textContent = '₹' + (dispatch * rate / 100).toFixed(2);
 }
 document.getElementById('dispatch-price').addEventListener('input', updatePreview);
 document.getElementById('comm-rate').addEventListener('input', updatePreview);

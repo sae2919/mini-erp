@@ -28,7 +28,7 @@ class SaleController extends Controller
 
     public function create()
     {
-        $products  = Product::active()
+        $products = Product::active()
             ->where('stock_quantity', '>', 0)
             ->with('category')
             ->orderBy('name')
@@ -44,10 +44,13 @@ class SaleController extends Controller
         try {
             $sale = $this->inventoryService->createSale($request->validated());
 
-            ActivityLogger::created($sale, "Sale {$sale->reference} created — ₹{$sale->total_amount}");
+            // ActivityLogger is called inside InventoryService::createSale(),
+            // but log the HTTP-level action here too for the web audit trail.
+            ActivityLogger::created($sale, "Sale {$sale->reference} created via web — ₹{$sale->total_amount}");
 
             return redirect()->route('sales.show', $sale)
                 ->with('success', "Invoice {$sale->reference} created. Stock updated.");
+
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
@@ -62,11 +65,14 @@ class SaleController extends Controller
     public function destroy(Sale $sale)
     {
         try {
-            ActivityLogger::deleted($sale, "Sale {$sale->reference} cancelled — stock restored");
+            // FIX: deleteSale() handles its own audit log internally.
+            // Do NOT call ActivityLogger here before the deletion — if
+            // deleteSale() throws, you would have logged a phantom action.
             $this->inventoryService->deleteSale($sale);
 
             return redirect()->route('sales.index')
                 ->with('success', "Sale {$sale->reference} cancelled. Stock restored.");
+
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }

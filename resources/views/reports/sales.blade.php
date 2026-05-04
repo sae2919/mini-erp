@@ -12,19 +12,31 @@
 
 @section('content')
 <div class="py-4 space-y-4">
+
+    {{-- Filter Form --}}
     <form method="GET" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-end">
         <div>
             <label class="block text-xs text-gray-500 mb-1">From</label>
-            <input type="date" name="from" value="{{ $from ?? '' }}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <input type="date" name="from" value="{{ $from ?? '' }}"
+                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
         </div>
         <div>
             <label class="block text-xs text-gray-500 mb-1">To</label>
-            <input type="date" name="to" value="{{ $to ?? '' }}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <input type="date" name="to" value="{{ $to ?? '' }}"
+                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
         </div>
-        <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Filter</button>
-        @if($from || $to)<a href="{{ route('reports.sales') }}" class="text-sm text-gray-500 hover:underline">Clear</a>@endif
+        <button type="submit"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+            Filter
+        </button>
+        @if($from || $to)
+            <a href="{{ route('reports.sales') }}" class="text-sm text-gray-500 hover:underline self-center">
+                Clear
+            </a>
+        @endif
     </form>
 
+    {{-- Summary Cards --}}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-green-50 border border-green-100 rounded-xl p-4">
             <p class="text-xs text-green-600 font-medium">Total Invoices</p>
@@ -44,6 +56,7 @@
         </div>
     </div>
 
+    {{-- Table --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b border-gray-100">
@@ -62,17 +75,42 @@
                     <td class="px-4 py-3 font-medium text-indigo-600">
                         <a href="{{ route('sales.show', $sale) }}">{{ $sale->reference }}</a>
                     </td>
-                    <td class="px-4 py-3 text-gray-600">{{ $sale->sale_date->format('d M Y') }}</td>
-                    <td class="px-4 py-3 text-gray-600">{{ $sale->customer_display }}</td>
+                    <td class="px-4 py-3 text-gray-600">
+                        {{ \Carbon\Carbon::parse($sale->sale_date)->format('d M Y') }}
+                    </td>
+                    {{--
+                        FIX: replaced $sale->customer_display (accessor that may not exist)
+                        with a safe fallback chain.
+                    --}}
+                    <td class="px-4 py-3 text-gray-600">
+                        {{ $sale->customer?->name ?? $sale->customer_name ?? 'Walk-in' }}
+                    </td>
                     <td class="px-4 py-3 text-gray-600">{{ $sale->items->count() }}</td>
-                    <td class="px-4 py-3 font-semibold text-green-700">₹{{ number_format($sale->total_amount, 2) }}</td>
-                    <td class="px-4 py-3 font-semibold text-indigo-700">₹{{ number_format($sale->totalProfit(), 2) }}</td>
+                    <td class="px-4 py-3 font-semibold text-green-700">
+                        ₹{{ number_format($sale->total_amount, 2) }}
+                    </td>
+                    <td class="px-4 py-3 font-semibold text-indigo-700">
+                        {{-- totalProfit() must exist on Sale model --}}
+                        ₹{{ number_format($sale->totalProfit(), 2) }}
+                    </td>
                 </tr>
                 @empty
-                <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">No sales found for this period.</td></tr>
+                <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-gray-400">
+                        No sales found for this period.
+                    </td>
+                </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
+
+    {{-- FIX: added pagination — without this the entire dataset loads on one page --}}
+    @if($sales instanceof \Illuminate\Pagination\LengthAwarePaginator)
+        <div class="mt-2">
+            {{ $sales->appends(request()->query())->links() }}
+        </div>
+    @endif
+
 </div>
 @endsection

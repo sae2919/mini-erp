@@ -1,4 +1,4 @@
-{{-- paste into resources/views/reports/purchases.blade.php --}}
+{{-- resources/views/reports/purchases.blade.php --}}
 @extends('layouts.app')
 @section('title', 'Purchase Report')
 @section('heading', 'Purchase Report')
@@ -12,19 +12,31 @@
 
 @section('content')
 <div class="py-4 space-y-4">
+
+    {{-- Filter Form --}}
     <form method="GET" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-end">
         <div>
             <label class="block text-xs text-gray-500 mb-1">From</label>
-            <input type="date" name="from" value="{{ $from ?? '' }}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <input type="date" name="from" value="{{ $from ?? '' }}"
+                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
         </div>
         <div>
             <label class="block text-xs text-gray-500 mb-1">To</label>
-            <input type="date" name="to" value="{{ $to ?? '' }}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <input type="date" name="to" value="{{ $to ?? '' }}"
+                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
         </div>
-        <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Filter</button>
-        @if($from || $to)<a href="{{ route('reports.purchases') }}" class="text-sm text-gray-500 hover:underline">Clear</a>@endif
+        <button type="submit"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+            Filter
+        </button>
+        @if($from || $to)
+            <a href="{{ route('reports.purchases') }}" class="text-sm text-gray-500 hover:underline self-center">
+                Clear
+            </a>
+        @endif
     </form>
 
+    {{-- Summary Cards --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
             <p class="text-xs text-blue-600 font-medium">Total Orders</p>
@@ -40,6 +52,7 @@
         </div>
     </div>
 
+    {{-- Table --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b border-gray-100">
@@ -57,16 +70,34 @@
                     <td class="px-4 py-3 font-medium text-indigo-600">
                         <a href="{{ route('purchases.show', $purchase) }}">{{ $purchase->reference }}</a>
                     </td>
-                    <td class="px-4 py-3 text-gray-600">{{ $purchase->purchase_date->format('d M Y') }}</td>
-                    <td class="px-4 py-3 text-gray-600">{{ $purchase->supplier->name }}</td>
+                    <td class="px-4 py-3 text-gray-600">
+                        {{ \Carbon\Carbon::parse($purchase->purchase_date)->format('d M Y') }}
+                    </td>
+                    <td class="px-4 py-3 text-gray-600">
+                        {{ $purchase->supplier?->name ?? '—' }}
+                    </td>
                     <td class="px-4 py-3 text-gray-600">{{ $purchase->items->count() }}</td>
-                    <td class="px-4 py-3 font-semibold text-blue-700">₹{{ number_format($purchase->total_amount, 2) }}</td>
+                    <td class="px-4 py-3 font-semibold text-blue-700">
+                        ₹{{ number_format($purchase->total_amount, 2) }}
+                    </td>
                 </tr>
                 @empty
-                <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">No purchases found for this period.</td></tr>
+                <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-gray-400">
+                        No purchases found for this period.
+                    </td>
+                </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
+
+    {{-- FIX: added pagination --}}
+    @if($purchases instanceof \Illuminate\Pagination\LengthAwarePaginator)
+        <div class="mt-2">
+            {{ $purchases->appends(request()->query())->links() }}
+        </div>
+    @endif
+
 </div>
 @endsection

@@ -1,3 +1,4 @@
+{{-- resources/views/reports/profit.blade.php --}}
 @extends('layouts.app')
 @section('title', 'Profit Report')
 @section('heading', 'Profit Report')
@@ -11,19 +12,31 @@
 
 @section('content')
 <div class="py-4 space-y-4">
+
+    {{-- Filter Form --}}
     <form method="GET" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-end">
         <div>
             <label class="block text-xs text-gray-500 mb-1">From</label>
-            <input type="date" name="from" value="{{ $from ?? '' }}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <input type="date" name="from" value="{{ $from ?? '' }}"
+                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
         </div>
         <div>
             <label class="block text-xs text-gray-500 mb-1">To</label>
-            <input type="date" name="to" value="{{ $to ?? '' }}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <input type="date" name="to" value="{{ $to ?? '' }}"
+                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
         </div>
-        <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Filter</button>
-        @if($from || $to)<a href="{{ route('reports.profit') }}" class="text-sm text-gray-500 hover:underline">Clear</a>@endif
+        <button type="submit"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+            Filter
+        </button>
+        @if($from || $to)
+            <a href="{{ route('reports.profit') }}" class="text-sm text-gray-500 hover:underline self-center">
+                Clear
+            </a>
+        @endif
     </form>
 
+    {{-- Summary Cards --}}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-green-50 border border-green-100 rounded-xl p-4">
             <p class="text-xs text-green-600 font-medium">Total Revenue</p>
@@ -45,8 +58,17 @@
         </div>
     </div>
 
+    {{-- Note: profit uses cost_price SNAPSHOT from sale_items, not live product cost --}}
+    <div class="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-xs text-blue-700">
+        ℹ️ Profit is calculated using the cost price recorded <strong>at the time of each sale</strong>,
+        not the product's current cost price. This ensures historical accuracy.
+    </div>
+
+    {{-- Product Breakdown Table --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800">Product-wise Breakdown</div>
+        <div class="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800">
+            Product-wise Breakdown
+        </div>
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b border-gray-100">
                 <tr class="text-left text-gray-500 font-medium">
@@ -61,7 +83,11 @@
             </thead>
             <tbody class="divide-y divide-gray-50">
                 @forelse($rows as $row)
-                @php $margin = $row->total_revenue > 0 ? round(($row->total_profit / $row->total_revenue) * 100, 1) : 0; @endphp
+                @php
+                    $margin = $row->total_revenue > 0
+                        ? round(($row->total_profit / $row->total_revenue) * 100, 1)
+                        : 0;
+                @endphp
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 py-3 font-medium text-gray-800">{{ $row->product_name }}</td>
                     <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ $row->sku }}</td>
@@ -73,16 +99,25 @@
                     </td>
                     <td class="px-4 py-3">
                         <span class="px-2 py-0.5 text-xs rounded-full
-                            {{ $margin >= 20 ? 'bg-green-100 text-green-700' : ($margin >= 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }}">
+                            {{ $margin >= 20
+                                ? 'bg-green-100 text-green-700'
+                                : ($margin >= 0
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-red-100 text-red-700') }}">
                             {{ $margin }}%
                         </span>
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No sales data for this period.</td></tr>
+                <tr>
+                    <td colspan="7" class="px-4 py-8 text-center text-gray-400">
+                        No sales data for this period.
+                    </td>
+                </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
+
 </div>
 @endsection
