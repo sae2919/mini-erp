@@ -10,6 +10,8 @@ use App\Models\StockMovement;
 use App\Services\ActivityLogger;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 
 class ProductController extends Controller
 {
@@ -18,8 +20,8 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $products = Product::with('category')
-            ->when($request->search,       fn($q) => $q->search($request->search))
-            ->when($request->category_id,  fn($q) => $q->where('category_id', $request->category_id))
+            ->when($request->search, fn($q) => $q->search($request->search))
+            ->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id))
             ->when($request->stock_status === 'low', fn($q) => $q->lowStock())
             ->when($request->stock_status === 'out', fn($q) => $q->where('stock_quantity', 0))
             ->orderBy('name')
@@ -28,7 +30,6 @@ class ProductController extends Controller
 
         $categories = Category::orderBy('name')->get();
 
-        // Sales executives and viewers must not see cost price
         $showCostPrice = ! auth()->user()->hasAnyRole(['sales_executive', 'viewer']);
 
         return view('products.index', compact('products', 'categories', 'showCostPrice'));
@@ -42,12 +43,29 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request)
     {
-        $product = Product::create($request->validated() + ['stock_quantity' => 0]);
+        try {
 
-        ActivityLogger::created($product, "Product \"{$product->name}\" created (SKU: {$product->sku})");
+            DB::transaction(function () use ($request, &$product) {
 
-        return redirect()->route('products.index')
-            ->with('success', 'Product created successfully.');
+                $product = Product::create(
+                    $request->validated() + ['stock_quantity' => 0]
+                );
+
+                ActivityLogger::created(
+                    $product,
+                    "Product \"{$product->name}\" created (SKU: {$product->sku})"
+                );
+            });
+
+            return redirect()->route('products.index')
+                ->with('success', 'Product created successfully.');
+
+        } catch (QueryException $e) {
+
+            return back()
+                ->withInput()
+                ->with('error', 'SKU already exists. Please use a unique SKU.');
+        }
     }
 
     public function show(Product $product)
@@ -65,7 +83,7 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
-        $categories    = Category::orderBy('name')->get();
+        $categories = Category::orderBy('name')->get();
         $canEditCostPrice = auth()->user()->hasRole('admin');
 
         return view('products.edit', compact('product', 'categories', 'canEditCostPrice'));
@@ -75,32 +93,28 @@ class ProductController extends Controller
     {
         $validated = $request->validated();
 
-        // ── Stock adjustment via InventoryService ──────────────────────────
-        // IMPORTANT: never update stock_quantity directly on the product.
-        // All stock mutations must go through InventoryService so they are
-        // transactionally safe, locked, and audit-logged.
+        // ✅ Stock via service (safe + logged)
         if (! empty($validated['add_stock']) && $validated['add_stock'] > 0) {
+
             $this->inventoryService->adjustStock(
                 productId: $product->id,
-                type:      'add',
-                quantity:  (int) $validated['add_stock'],
-                reason:    'manual_adjustment',
-                notes:     $validated['stock_notes'] ?? 'Manual stock addition via product edit',
-                userId:    auth()->id(),
+                type: 'add',
+                quantity: (int) $validated['add_stock'],
+                reason: 'manual_adjustment',
+                notes: $validated['stock_notes'] ?? 'Manual stock addition via product edit',
+                userId: auth()->id(),
             );
         }
 
-        // ── Remove stock-only fields before updating the product row ───────
+        // Remove stock-only fields
         unset($validated['add_stock'], $validated['stock_notes']);
 
-        // ── cost_price is only editable by admin ───────────────────────────
-        // UpdateProductRequest already enforces this at validation level,
-        // but we strip it here as a defence-in-depth measure.
+        // 🔐 Only admin can change cost_price
         if (! auth()->user()->hasRole('admin')) {
             unset($validated['cost_price']);
         }
 
-        // ── Never allow direct stock_quantity override ─────────────────────
+        // ❌ Never allow direct stock overwrite
         unset($validated['stock_quantity']);
 
         $product->update($validated);

@@ -268,17 +268,20 @@ Route::middleware(['auth'])->group(function () {
     // ── Stock Requests ────────────────────────────────────────────
     // FIX: was split across two auth groups causing duplicate route names.
     // Consolidated here with proper role guards.
-    Route::middleware('role:admin|inventory_manager')->group(function () {
-        Route::get('admin/stock-requests',           [StockRequestController::class, 'adminIndex'])->name('stock-requests.admin');
-        Route::post('stock-requests/{id}/approve',   [StockRequestController::class, 'approve'])->name('stock-requests.approve');
-        Route::post('stock-requests/{id}/reject',    [StockRequestController::class, 'reject'])->name('stock-requests.reject');
-    });
-    Route::middleware('role:admin')->group(function () {
-        // FIX: paying out stock requests is an admin-only financial action
-        Route::post('stock-requests/{id}/pay', [StockRequestController::class, 'pay'])->name('stock-requests.pay');
-    });
-    // The resource itself (index, create, store, show) is open to all authenticated users
-    Route::resource('stock-requests', StockRequestController::class)->except(['destroy']);
+    // ── Stock Requests ────────────────────────────────────────────
+Route::middleware('role:admin|inventory_manager')->group(function () {
+    Route::get('admin/stock-requests',           [StockRequestController::class, 'adminIndex'])->name('stock-requests.admin');
+    Route::post('stock-requests/{id}/approve',   [StockRequestController::class, 'approve'])->name('stock-requests.approve');
+    Route::post('stock-requests/{id}/reject',    [StockRequestController::class, 'reject'])->name('stock-requests.reject');
+});
+
+// ✅ FIXED HERE ONLY (added seller role)
+Route::middleware('role:admin|seller')->group(function () {
+    Route::post('stock-requests/{id}/pay', [StockRequestController::class, 'pay'])->name('stock-requests.pay');
+});
+
+// The resource itself (index, create, store, show)
+Route::resource('stock-requests', StockRequestController::class)->except(['destroy']);
 
     // ── Expenses ──────────────────────────────────────────────────
     Route::middleware('role:admin')->group(function () {

@@ -38,34 +38,27 @@ class StockRequestController extends Controller
         return back()->with('success', 'Stock request sent!');
     }
 
-    // Admin: approve
     public function approve($id)
     {
         $request = StockRequest::findOrFail($id);
 
-        // Prevent duplicate dispatch
         $exists = DispatchOrder::where('stock_request_id', $request->id)->exists();
         if ($exists) {
             return back()->with('error', 'Dispatch already created');
         }
 
-        // Update status
         $request->update([
             'status' => 'approved'
         ]);
 
-        // Get product
         $product = Product::findOrFail($request->product_id);
 
-        // Check stock
         if ($product->stock_quantity < $request->quantity) {
             return back()->with('error', 'Not enough stock available!');
         }
 
-        // Reduce stock
         $product->decrement('stock_quantity', $request->quantity);
 
-        // Log stock OUT
         if (function_exists('logStock')) {
             logStock(
                 $product->id,
@@ -77,10 +70,8 @@ class StockRequestController extends Controller
             );
         }
 
-        // Calculate total
         $total = ($product->price ?? 0) * $request->quantity;
 
-        // Create dispatch (TEMP reference)
         $dispatch = DispatchOrder::create([
             'seller_id' => $request->seller_id,
             'user_id' => auth()->id(),
@@ -94,17 +85,15 @@ class StockRequestController extends Controller
             'stock_request_id' => $request->id
         ]);
 
-        // Update reference safely
         $dispatch->update([
             'reference' => 'DSP-' . str_pad($dispatch->id, 6, '0', STR_PAD_LEFT)
         ]);
 
-        // 🔥 FIXED HERE ONLY
         \App\Models\DispatchItem::create([
             'dispatch_order_id' => $dispatch->id,
             'product_id' => $product->id,
             'quantity' => $request->quantity,
-            'dispatch_price' => $product->price, // ✅ FIX
+            'dispatch_price' => $product->price,
         ]);
 
         return back()->with('success', 'Approved, Stock Updated & Dispatch Created');
@@ -165,11 +154,20 @@ class StockRequestController extends Controller
 
         $seller = Seller::where('user_id', auth()->id())->firstOrFail();
 
-        $req = StockRequest::where('id', $id)
-            ->where('seller_id', $seller->id)
-            ->where('status', 'approved')
-            ->where('payment_status', 'pending')
-            ->firstOrFail();
+        $req = StockRequest::findOrFail($id);
+
+        // 🔥 SECURITY FIX (no more 403)
+        if ($req->seller_id != $seller->id) {
+            abort(403, 'You are not allowed to pay this request');
+        }
+
+        if ($req->status !== 'approved') {
+            return back()->with('error', 'Request not approved yet');
+        }
+
+        if ($req->payment_status === 'paid') {
+            return back()->with('error', 'Already paid');
+        }
 
         DB::transaction(function () use ($req, $request) {
 

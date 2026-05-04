@@ -6,6 +6,11 @@
 @endsection
 
 @section('content')
+
+{{-- ✅ WRAPPER ADDED --}}
+<div class="grid grid-cols-2 gap-6">
+
+{{-- ================= LEFT SIDE (UNCHANGED) ================= --}}
 <div class="py-4 max-w-3xl">
 <form method="POST" action="{{ route('productions.store') }}" id="prod-form">
 @csrf
@@ -64,7 +69,49 @@
 </div>
 </form>
 </div>
+
+{{-- ================= RIGHT SIDE (NEW REPORT) ================= --}}
+<div class="bg-white rounded-xl shadow border border-gray-100 p-6">
+
+    <h3 class="text-lg font-semibold mb-4">📊 Stock Movement Report</h3>
+
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-left text-gray-500 border-b">
+                <th class="py-2">Product</th>
+                <th>Produced</th>
+                <th>Dispatched</th>
+                <th>Sold</th>
+                <th>Warehouse</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @forelse($report as $row)
+            <tr class="border-b">
+                <td class="py-2">{{ $row->product_name }}</td>
+                <td>{{ $row->produced }}</td>
+                <td class="text-blue-600 font-medium">{{ $row->dispatched }}</td>
+                <td class="text-green-600 font-medium">{{ $row->sold }}</td>
+                <td>{{ $row->warehouse }}</td>
+                <td class="font-bold">{{ $row->total }}</td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="6" class="text-center py-4 text-gray-400">
+                    No data available
+                </td>
+            </tr>
+            @endforelse
+        </tbody>
+    </table>
+
+</div>
+
+</div>
 @endsection
+
 
 @push('scripts')
 <script>

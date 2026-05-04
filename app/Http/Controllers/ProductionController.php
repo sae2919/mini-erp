@@ -20,10 +20,29 @@ class ProductionController extends Controller
         return view('productions.index', compact('productions','totalCost','thisMonth','totalUnits'));
     }
 
-    public function create()
+    public function create(Request $request) // ✅ UPDATED (added Request)
     {
         $products = Product::active()->with('category')->orderBy('name')->get();
-        return view('productions.create', compact('products'));
+
+        // 🔥 ADD THIS (Stock Movement Report Data)
+        $report = DB::table('products')
+            ->leftJoin('production_items', 'products.id', '=', 'production_items.product_id')
+            ->leftJoin('dispatch_items', 'products.id', '=', 'dispatch_items.product_id')
+            ->leftJoin('sale_items', 'products.id', '=', 'sale_items.product_id')
+            ->select(
+                'products.id',
+                'products.name as product_name',
+                DB::raw('COALESCE(SUM(DISTINCT production_items.quantity),0) as produced'),
+                DB::raw('COALESCE(SUM(DISTINCT dispatch_items.quantity),0) as dispatched'),
+                DB::raw('COALESCE(SUM(DISTINCT sale_items.quantity),0) as sold'),
+                DB::raw('products.stock_quantity as warehouse'),
+                DB::raw('(COALESCE(SUM(DISTINCT production_items.quantity),0) 
+                        - COALESCE(SUM(DISTINCT dispatch_items.quantity),0)) as total')
+            )
+            ->groupBy('products.id','products.name','products.stock_quantity')
+            ->get();
+
+        return view('productions.create', compact('products', 'report')); // ✅ UPDATED
     }
 
     public function store(Request $request)
@@ -49,8 +68,10 @@ class ProductionController extends Controller
 
             $totalCost  = 0;
             $totalUnits = 0;
+
             foreach ($request->items as $item) {
                 $subtotal = $item['quantity'] * $item['unit_cost'];
+
                 ProductionItem::create([
                     'production_id' => $production->id,
                     'product_id'    => $item['product_id'],
@@ -58,10 +79,14 @@ class ProductionController extends Controller
                     'unit_cost'     => $item['unit_cost'],
                     'subtotal'      => $subtotal,
                 ]);
-                Product::where('id', $item['product_id'])->increment('stock_quantity', $item['quantity']);
+
+                Product::where('id', $item['product_id'])
+                    ->increment('stock_quantity', $item['quantity']);
+
                 $totalCost  += $subtotal;
                 $totalUnits += $item['quantity'];
             }
+
             $production->update(['total_cost' => $totalCost]);
 
             ActivityLogger::created($production,
@@ -83,13 +108,17 @@ class ProductionController extends Controller
     {
         DB::transaction(function () use ($production) {
             foreach ($production->items as $item) {
-                Product::where('id',$item->product_id)->decrement('stock_quantity',$item->quantity);
+                Product::where('id',$item->product_id)
+                    ->decrement('stock_quantity',$item->quantity);
             }
+
             ActivityLogger::deleted($production,
                 "Production batch {$production->reference} deleted. Stock reversed."
             );
+
             $production->delete();
         });
+
         return redirect()->route('productions.index')
             ->with('success', 'Production batch deleted. Stock reversed.');
     }
