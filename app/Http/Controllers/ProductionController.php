@@ -11,49 +11,110 @@ use Illuminate\Support\Facades\DB;
 
 class ProductionController extends Controller
 {
+    // ─────────────────────────────────────────────────────────────
+    // INDEX
+    // ─────────────────────────────────────────────────────────────
     public function index()
     {
-        $productions = Production::with(['user','items.product'])->latest()->paginate(20);
-        $totalCost   = Production::sum('total_cost');
-        $thisMonth   = Production::where('production_date','>=',now()->startOfMonth())->sum('total_cost');
-        $totalUnits  = ProductionItem::sum('quantity');
-        return view('productions.index', compact('productions','totalCost','thisMonth','totalUnits'));
+        $productions = Production::with(['user', 'items.product'])
+            ->latest()
+            ->paginate(20);
+
+        $totalCost  = Production::sum('total_cost');
+        $thisMonth  = Production::where('production_date', '>=', now()->startOfMonth())
+            ->sum('total_cost');
+        $totalUnits = ProductionItem::sum('quantity');
+
+        return view('productions.index', compact('productions', 'totalCost', 'thisMonth', 'totalUnits'));
     }
 
-    public function create(Request $request) // ✅ UPDATED (added Request)
+    // ─────────────────────────────────────────────────────────────
+    // CREATE — form + stock movement report side by side
+    // ─────────────────────────────────────────────────────────────
+    public function create()
     {
-        $products = Product::active()->with('category')->orderBy('name')->get();
-
-        // 🔥 ADD THIS (Stock Movement Report Data)
-        $report = DB::table('products')
-            ->leftJoin('production_items', 'products.id', '=', 'production_items.product_id')
-            ->leftJoin('dispatch_items', 'products.id', '=', 'dispatch_items.product_id')
-            ->leftJoin('sale_items', 'products.id', '=', 'sale_items.product_id')
-            ->select(
-                'products.id',
-                'products.name as product_name',
-                DB::raw('COALESCE(SUM(DISTINCT production_items.quantity),0) as produced'),
-                DB::raw('COALESCE(SUM(DISTINCT dispatch_items.quantity),0) as dispatched'),
-                DB::raw('COALESCE(SUM(DISTINCT sale_items.quantity),0) as sold'),
-                DB::raw('products.stock_quantity as warehouse'),
-                DB::raw('(COALESCE(SUM(DISTINCT production_items.quantity),0) 
-                        - COALESCE(SUM(DISTINCT dispatch_items.quantity),0)) as total')
-            )
-            ->groupBy('products.id','products.name','products.stock_quantity')
+        // Products for the form dropdown
+        $products = Product::active()
+            ->with('category')
+            ->orderBy('name')
             ->get();
 
-        return view('productions.create', compact('products', 'report')); // ✅ UPDATED
+        // Pre-mapped for JS — avoids ALL Blade @php/@json parser issues
+        $productsJs = $products->map(fn($p) => [
+            'id'   => $p->id,
+            'name' => $p->name . ' (' . $p->sku . ')',
+            'cost' => (float) $p->production_cost,
+        ]);
+
+        // Stock movement report — correlated subqueries (no cartesian product)
+        $report = DB::table('products')
+            ->join('categories', 'products.category_id', '=', 'categories.id')
+            ->select(
+                'products.id',
+                'products.name           as product_name',
+                'products.sku            as product_sku',
+                'categories.name         as category_name',
+                'products.stock_quantity as warehouse',
+
+                // Total units produced
+                DB::raw('(
+                    SELECT COALESCE(SUM(pi.quantity), 0)
+                    FROM production_items pi
+                    WHERE pi.product_id = products.id
+                ) as produced'),
+
+                // Total units dispatched to sellers
+                DB::raw('(
+                    SELECT COALESCE(SUM(di.quantity), 0)
+                    FROM dispatch_items di
+                    WHERE di.product_id = products.id
+                ) as dispatched'),
+
+                // Total units sold (direct / POS sales)
+                DB::raw('(
+                    SELECT COALESCE(SUM(si.quantity), 0)
+                    FROM sale_items si
+                    WHERE si.product_id = products.id
+                ) as sold'),
+
+                // With sellers = dispatched minus what sellers have sold
+                // Uses seller_sale_items NOT sale_items to avoid negative values
+                DB::raw('(
+    GREATEST(0,
+        (SELECT COALESCE(SUM(di.quantity), 0) FROM dispatch_items di WHERE di.product_id = products.id)
+      - (SELECT COALESCE(SUM(ss.quantity), 0) FROM seller_sale_items ss WHERE ss.product_id = products.id)
+    )
+) as with_sellers'),
+
+DB::raw('(
+    products.stock_quantity
+  + GREATEST(0,
+        (SELECT COALESCE(SUM(di.quantity), 0) FROM dispatch_items di WHERE di.product_id = products.id)
+      - (SELECT COALESCE(SUM(ss.quantity), 0) FROM seller_sale_items ss WHERE ss.product_id = products.id)
+    )
+) as total_stock')
+
+            ) // <-- closing ->select()
+            ->where('products.is_active', true)
+            ->orderBy('categories.name')
+            ->orderBy('products.name')
+            ->get();
+
+        return view('productions.create', compact('products', 'productsJs', 'report'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // STORE
+    // ─────────────────────────────────────────────────────────────
     public function store(Request $request)
     {
         $request->validate([
-            'production_date'      => ['required','date'],
-            'notes'                => ['nullable','string'],
-            'items'                => ['required','array','min:1'],
-            'items.*.product_id'   => ['required','exists:products,id'],
-            'items.*.quantity'     => ['required','integer','min:1'],
-            'items.*.unit_cost'    => ['required','numeric','min:0'],
+            'production_date'    => ['required', 'date', 'before_or_equal:today'],
+            'notes'              => ['nullable', 'string', 'max:1000'],
+            'items'              => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'exists:products,id'],
+            'items.*.quantity'   => ['required', 'integer', 'min:1'],
+            'items.*.unit_cost'  => ['required', 'numeric', 'min:0'],
         ]);
 
         DB::transaction(function () use ($request) {
@@ -80,6 +141,7 @@ class ProductionController extends Controller
                     'subtotal'      => $subtotal,
                 ]);
 
+                // Atomic increment — safe against race conditions
                 Product::where('id', $item['product_id'])
                     ->increment('stock_quantity', $item['quantity']);
 
@@ -89,37 +151,48 @@ class ProductionController extends Controller
 
             $production->update(['total_cost' => $totalCost]);
 
-            ActivityLogger::created($production,
+            ActivityLogger::created(
+                $production,
                 "Production batch {$production->reference} — {$totalUnits} units, ₹{$totalCost}"
             );
         });
 
-        return redirect()->route('productions.index')
+        return redirect()
+            ->route('productions.index')
             ->with('success', 'Production batch recorded. Warehouse stock updated.');
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // SHOW
+    // ─────────────────────────────────────────────────────────────
     public function show(Production $production)
     {
-        $production->load(['items.product.category','user']);
+        $production->load(['items.product.category', 'user']);
+
         return view('productions.show', compact('production'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // DESTROY
+    // ─────────────────────────────────────────────────────────────
     public function destroy(Production $production)
     {
         DB::transaction(function () use ($production) {
             foreach ($production->items as $item) {
-                Product::where('id',$item->product_id)
-                    ->decrement('stock_quantity',$item->quantity);
+                Product::where('id', $item->product_id)
+                    ->decrement('stock_quantity', $item->quantity);
             }
 
-            ActivityLogger::deleted($production,
+            ActivityLogger::deleted(
+                $production,
                 "Production batch {$production->reference} deleted. Stock reversed."
             );
 
             $production->delete();
         });
 
-        return redirect()->route('productions.index')
+        return redirect()
+            ->route('productions.index')
             ->with('success', 'Production batch deleted. Stock reversed.');
     }
 }

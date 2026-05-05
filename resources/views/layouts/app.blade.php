@@ -84,7 +84,7 @@
                 {!! navLink('reports.account-statement',  '🧾', 'Account Statement') !!}
                 {!! navLink('reports.best-products',      '📈', 'Best Products') !!}
                 {!! navLink('reports.seller-performance', '🏪', 'Seller Performance') !!}
-                {!! navLink('reports.stock-movement',     '📦', 'Stock Movement') !!}
+                
                 
                 @endhasanyrole
 
