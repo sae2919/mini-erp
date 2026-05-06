@@ -128,4 +128,25 @@ class ReportService
             ->limit($limit)
             ->get();
     }
+    public function getStockMovementReport($from = null, $to = null, $categoryId = null)
+{
+    $query = DB::table('products')
+        ->leftJoin('categories', 'categories.id', '=', 'products.category_id');
+
+    // ✅ FILTER: DATE (if you use created_at or production date)
+    if ($from && $to) {
+        $query->whereBetween('products.created_at', [$from, $to]);
+    }
+
+    // ✅ FILTER: CATEGORY
+    if ($categoryId) {
+        $query->where('products.category_id', $categoryId);
+    }
+
+    return $query->select(
+        'products.name as product_name',
+        'categories.name as category_name',
+        'products.stock_quantity as total_stock'
+    )->get();
+}
 }

@@ -3,10 +3,10 @@
 @section('heading','Best Selling Products')
 
 @section('header-actions')
-    <a href="{{ url('/export/best-products?from='.$from.'&to='.$to) }}"
-       class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition">
-        Export Excel
-    </a>
+    <a href="{{ url('/export/best-products-excel') . '?' . http_build_query(request()->all()) }}"
+   style="background:#16a34a;color:white;padding:8px 14px;border-radius:6px;margin-left:10px;">
+   Export Excel
+</a>
 @endsection
 
 @section('content')

@@ -3,10 +3,10 @@
 @section('heading','Sale — '.$sellerSale->reference)
 
 @section('header-actions')
-    <a href="{{ url('/export/seller-pl') }}"
-       class="text-sm bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700">
-        Export Excel
-    </a>
+    <a href="{{ url('/export/stock-report-excel') . '?' . http_build_query(request()->all()) }}"
+   style="background:#16a34a;color:white;padding:8px 14px;border-radius:6px;margin-left:10px;">
+   Export Excel
+</a>
     <a href="{{ route('seller-sales.index') }}" class="text-sm text-gray-500 hover:text-gray-700 ml-3">← Back</a>
 @endsection
 

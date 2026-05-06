@@ -3,10 +3,10 @@
 @section('heading','Seller Performance Comparison')
 
 @section('header-actions')
-    <a href="{{ url('/export/seller-performance?from='.$from.'&to='.$to) }}"
-       class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition">
-        Export Excel
-    </a>
+    <a href="{{ url('/export/seller-performance-excel') . '?' . http_build_query(request()->all()) }}"
+   class="btn btn-success">
+   Export Excel
+</a>
 @endsection
 
 @section('content')

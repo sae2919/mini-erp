@@ -337,25 +337,18 @@ Route::resource('stock-requests', StockRequestController::class)->except(['destr
         Route::resource('users',        UserController::class)->except(['show']);
         Route::get('activity-logs',     [ActivityLogController::class, 'index'])->name('activity-logs.index');
     });
-    // ── Exports ───────────────────────────────────────────────────
-Route::prefix('export')->name('export.')->group(function () {
+     // ─── CSV EXPORTS ───
+    Route::prefix('export')->name('export.')->group(function () {
+        Route::get('sales', [ExportController::class, 'sales'])->name('sales');
+        Route::get('purchases', [ExportController::class, 'purchases'])->name('purchases');
+        Route::get('profit', [ExportController::class, 'profit'])->name('profit');
+    });
 
-    Route::get('sales',     [ExportController::class, 'sales'])->name('sales')
-        ->middleware('role:admin|viewer');
-
-    Route::get('purchases', [ExportController::class, 'purchases'])->name('purchases')
-        ->middleware('role:admin|inventory_manager|viewer');
-
-    Route::get('profit',    [ExportController::class, 'profit'])->name('profit')
-        ->middleware('role:admin|viewer');
-
-    // 🔥 YOUR REPORT EXPORTS (ADDED PROPERLY HERE)
-    Route::get('seller-pl', [ReportController::class, 'exportSellerPL'])->name('seller-pl');
-    Route::get('account-statement', [ReportController::class, 'exportAccount'])->name('account-statement');
-    Route::get('best-products', [ReportController::class, 'exportProducts'])->name('best-products');
-    Route::get('seller-performance', [ReportController::class, 'exportPerformance'])->name('seller-performance');
+    // ─── EXCEL EXPORTS ───
+    Route::get('/export/stock-report-excel', [ExportController::class, 'stockExcel'])->name('export.stock-excel');
+    Route::get('/export/seller-pnl-excel', [ExportController::class, 'sellerPnlExcel'])->name('export.seller-pnl-excel');
+    Route::get('/export/best-products-excel', [ExportController::class, 'bestProductsExcel'])->name('export.best-products-excel');
+    Route::get('/export/seller-performance-excel', [ExportController::class, 'sellerPerformanceExcel'])->name('export.seller-performance-excel');
+    Route::get('/export/account-statement-excel', [ExportController::class, 'accountStatementExcel'])->name('export.account-statement-excel');
 
 });
-Route::get('/export/stock-report', [ProductionController::class, 'exportStockReport'])
-    ->name('export.stock-report');
-}); // end auth middleware group

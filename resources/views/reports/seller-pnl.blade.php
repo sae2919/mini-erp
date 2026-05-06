@@ -3,10 +3,10 @@
 @section('heading','Seller P&L Report')
 
 @section('header-actions')
-    <a href="{{ url('/export/seller-pl?seller_id='.request('seller_id').'&from='.$from.'&to='.$to) }}"
-       class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition">
-        Export Excel
-    </a>
+    <a href="{{ url('/export/seller-pnl-excel') . '?' . http_build_query(request()->all()) }}"
+   class="btn btn-success">
+   Export Excel
+</a>
 @endsection
 
 @section('content')

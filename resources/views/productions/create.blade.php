@@ -101,6 +101,16 @@
   .r-total      { font-weight: 700; color: var(--text-primary); }
   .r-table tfoot td { padding: 11px 14px; font-weight: 700; background: var(--surface2); border-top: 1.5px solid var(--border); font-family: 'DM Mono', monospace; font-size: 13px; }
   .r-table tfoot td:first-child, .r-table tfoot td:nth-child(2) { font-family: 'DM Sans', sans-serif; }
+  /* ✅ Bigger QTY input */
+/* ✅ FIXED: Proper width for 3–4 digit values */
+.qty-big {
+  width: 110px !important;
+  height: 42px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;      /* ✅ FIX: prevents hiding first digit */
+  padding: 6px 12px;
+}
 </style>
 @endpush
 
@@ -173,12 +183,12 @@
                   </td>
                   <td class="r">
                     <input type="number" name="items[{{ $i }}][quantity]"
-                      class="m-row-input r" value="{{ $item['quantity'] ?? 1 }}"
+  class="m-row-input r qty-big" value="{{ $item['quantity'] ?? 1 }}"
                       min="1" onchange="calcRowEl(this.closest('tr'))" required />
                   </td>
                   <td class="r">
                     <input type="number" name="items[{{ $i }}][unit_cost]"
-                      class="m-row-input r" value="{{ $item['unit_cost'] ?? '' }}"
+                      class="m-row-input r qty-big" value="{{ $item['unit_cost'] ?? '' }}"
                       step="0.01" min="0" readonly required />
                   </td>
                   <td class="r"><span class="m-subtotal">₹0.00</span></td>
@@ -235,7 +245,7 @@
 <button class="r-btn-generate" onclick="filterReport()">Generate</button>
 </div>
 
-<a href="{{ url('/export/stock-report') . '?' . http_build_query(request()->all()) }}"
+<a href="{{ url('/export/stock-report-excel') . '?' . http_build_query(request()->all()) }}"
    style="background:#16a34a;color:white;padding:8px 14px;border-radius:6px;margin-left:10px;">
    Export Excel
 </a>

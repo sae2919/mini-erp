@@ -2,10 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\StockReportExport;
+use App\Exports\BestProductsExport;
+use App\Exports\SellerPnlExport;
+use App\Exports\SellerPerformanceExport;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Services\ActivityLogger;
 use App\Services\ReportService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+
 
 class ExportController extends Controller
 {
@@ -38,7 +44,6 @@ class ExportController extends Controller
                 ]);
             }
 
-            // Summary row
             fputcsv($handle, []);
             fputcsv($handle, ['TOTAL', '', '', $data['summary']['total_invoices'],
                 number_format($data['summary']['total_revenue'], 2),
@@ -127,13 +132,42 @@ class ExportController extends Controller
         });
     }
 
-    // ─── Helper ───────────────────────────────────────────────────
-
     private function streamCsv(string $filename, callable $callback): StreamedResponse
     {
-        return response()->streamDownload($callback, "{$filename}.csv", [
+        return response()->streamDownload(function () use ($callback) {
+
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
+            echo "\xEF\xBB\xBF";
+
+            $callback();
+
+        }, "{$filename}.csv", [
             'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}.csv\"",
+            'Cache-Control'       => 'no-store, no-cache',
         ]);
+    }
+
+    public function stockExcel(Request $request)
+    {
+        return Excel::download(new StockReportExport($request), 'stock-report.xlsx');
+    }
+
+    public function bestProductsExcel(Request $request)
+    {
+        return Excel::download(new BestProductsExport($request), 'best-products.xlsx');
+    }
+
+    public function sellerPnlExcel(Request $request)
+    {
+        return Excel::download(new SellerPnlExport($request), 'seller-pnl.xlsx');
+    }
+
+    public function sellerPerformanceExcel(Request $request)
+    {
+        return Excel::download(new SellerPerformanceExport($request), 'seller-performance.xlsx');
     }
 }

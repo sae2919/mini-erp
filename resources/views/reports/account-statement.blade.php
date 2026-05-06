@@ -1,13 +1,38 @@
 @extends('layouts.app')
 @section('title','Account Statement')
 @section('heading','Seller Account Statement')
+<form method="GET" action="{{ route($exportRoute) }}" id="exportForm">
 
+    <!-- KEEP FILTERS -->
+    <input type="hidden" name="from" value="{{ request('from') }}">
+    <input type="hidden" name="to" value="{{ request('to') }}">
+    <input type="hidden" name="seller_id" value="{{ request('seller_id') }}">
+    <input type="hidden" name="category_id" value="{{ request('category_id') }}">
+
+    <!-- COLUMN SELECT BOX -->
+    <div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:10px;">
+
+        <label><input type="checkbox" name="columns[]" value="seller" checked> Seller</label>
+        <label><input type="checkbox" name="columns[]" value="region"> Region</label>
+        <label><input type="checkbox" name="columns[]" value="sales"> Sales</label>
+        <label><input type="checkbox" name="columns[]" value="revenue"> Revenue</label>
+        <label><input type="checkbox" name="columns[]" value="commission"> Commission</label>
+        <label><input type="checkbox" name="columns[]" value="stock"> Stock</label>
+        <label><input type="checkbox" name="columns[]" value="outstanding"> Outstanding</label>
+
+    </div>
+
+    <button type="submit" class="btn btn-success">
+        Export Excel
+    </button>
+
+</form>
 @section('header-actions')
     @if(isset($seller))
-    <a href="{{ url('/export/account-statement?seller_id='.( $seller->id ?? '' ).'&from='.$from.'&to='.$to) }}"
-       class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition">
-        Export Excel
-    </a>
+    <a href="{{ url('/export/stock-report-excel') . '?' . http_build_query(request()->all()) }}"
+   style="background:#16a34a;color:white;padding:8px 14px;border-radius:6px;margin-left:10px;">
+   Export Excel
+</a>
 
     <a href="javascript:window.print()"
        class="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition ml-2">

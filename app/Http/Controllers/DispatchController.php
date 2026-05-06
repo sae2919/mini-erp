@@ -21,8 +21,8 @@ class DispatchController extends Controller
     // ─────────────────────────────────────────────────────────────
     public function index(Request $request)
     {
-        $perPage = (int) $request->input('per_page', 20);
-        $perPage = in_array($perPage, [10, 20, 50, 100]) ? $perPage : 20;
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPage, [10, 20, 50, 100]) ? $perPage : 10;
 
         $dispatches = DispatchOrder::with(['seller', 'items'])
             ->when($request->seller_id,      fn($q) => $q->where('seller_id', $request->seller_id))
