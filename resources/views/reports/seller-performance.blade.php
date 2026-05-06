@@ -2,6 +2,13 @@
 @section('title','Seller Performance')
 @section('heading','Seller Performance Comparison')
 
+@section('header-actions')
+    <a href="{{ url('/export/seller-performance?from='.$from.'&to='.$to) }}"
+       class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition">
+        Export Excel
+    </a>
+@endsection
+
 @section('content')
 <div class="py-4 space-y-4">
 

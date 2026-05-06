@@ -16,42 +16,55 @@ use Illuminate\Validation\ValidationException;
 
 class DispatchController extends Controller
 {
+    // ─────────────────────────────────────────────────────────────
+    // INDEX  ← per_page support added; everything else unchanged
+    // ─────────────────────────────────────────────────────────────
     public function index(Request $request)
     {
-        $dispatches = DispatchOrder::with(['seller','items'])
-            ->when($request->seller_id,      fn($q)=>$q->where('seller_id',$request->seller_id))
-            ->when($request->payment_status, fn($q)=>$q->where('payment_status',$request->payment_status))
-            ->when($request->from,           fn($q)=>$q->whereDate('dispatch_date','>=',$request->from))
-            ->when($request->to,             fn($q)=>$q->whereDate('dispatch_date','<=',$request->to))
-            ->latest()->paginate(20)->withQueryString();
+        $perPage = (int) $request->input('per_page', 20);
+        $perPage = in_array($perPage, [10, 20, 50, 100]) ? $perPage : 20;
+
+        $dispatches = DispatchOrder::with(['seller', 'items'])
+            ->when($request->seller_id,      fn($q) => $q->where('seller_id', $request->seller_id))
+            ->when($request->payment_status, fn($q) => $q->where('payment_status', $request->payment_status))
+            ->when($request->from,           fn($q) => $q->whereDate('dispatch_date', '>=', $request->from))
+            ->when($request->to,             fn($q) => $q->whereDate('dispatch_date', '<=', $request->to))
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
 
         $sellers      = Seller::active()->orderBy('name')->get();
-        $totalValue   = DispatchOrder::where('status','!=','cancelled')->sum('total_amount');
-        $totalPending = DispatchOrder::where('payment_status','!=','paid')
-            ->where('status','!=','cancelled')
+        $totalValue   = DispatchOrder::where('status', '!=', 'cancelled')->sum('total_amount');
+        $totalPending = DispatchOrder::where('payment_status', '!=', 'paid')
+            ->where('status', '!=', 'cancelled')
             ->sum(DB::raw('total_amount - paid_amount'));
-            
 
-        return view('dispatches.index', compact('dispatches','sellers','totalValue','totalPending'));
+        return view('dispatches.index', compact('dispatches', 'sellers', 'totalValue', 'totalPending'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // CREATE — UNCHANGED
+    // ─────────────────────────────────────────────────────────────
     public function create()
     {
         $sellers  = Seller::active()->orderBy('name')->get();
-        $products = Product::active()->where('stock_quantity','>',0)->with('category')->orderBy('name')->get();
-        return view('dispatches.create', compact('sellers','products'));
+        $products = Product::active()->where('stock_quantity', '>', 0)->with('category')->orderBy('name')->get();
+        return view('dispatches.create', compact('sellers', 'products'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // STORE — UNCHANGED
+    // ─────────────────────────────────────────────────────────────
     public function store(Request $request)
     {
         $request->validate([
-            'seller_id'              => ['required','exists:sellers,id'],
-            'dispatch_date'          => ['required','date'],
-            'notes'                  => ['nullable','string'],
-            'items'                  => ['required','array','min:1'],
-            'items.*.product_id'     => ['required','exists:products,id'],
-            'items.*.quantity'       => ['required','integer','min:1'],
-            'items.*.dispatch_price' => ['required','numeric','min:0'],
+            'seller_id'              => ['required', 'exists:sellers,id'],
+            'dispatch_date'          => ['required', 'date'],
+            'notes'                  => ['nullable', 'string'],
+            'items'                  => ['required', 'array', 'min:1'],
+            'items.*.product_id'     => ['required', 'exists:products,id'],
+            'items.*.quantity'       => ['required', 'integer', 'min:1'],
+            'items.*.dispatch_price' => ['required', 'numeric', 'min:0'],
         ]);
 
         try {
@@ -69,7 +82,7 @@ class DispatchController extends Controller
 
                 $totalAmount = 0;
                 foreach ($request->items as $item) {
-                    $product = Product::where('id',$item['product_id'])->lockForUpdate()->first();
+                    $product = Product::where('id', $item['product_id'])->lockForUpdate()->first();
 
                     if ($product->stock_quantity < $item['quantity']) {
                         throw ValidationException::withMessages([
@@ -89,8 +102,8 @@ class DispatchController extends Controller
                     $product->decrement('stock_quantity', $item['quantity']);
 
                     $ss = SellerStock::firstOrCreate(
-                        ['seller_id'=>$request->seller_id,'product_id'=>$product->id],
-                        ['quantity'=>0]
+                        ['seller_id' => $request->seller_id, 'product_id' => $product->id],
+                        ['quantity' => 0]
                     );
                     $ss->increment('quantity', $item['quantity']);
                     $totalAmount += $subtotal;
@@ -107,33 +120,39 @@ class DispatchController extends Controller
                 ErpNotification::notify('dispatch',
                     "Dispatch {$dispatch->reference}",
                     "₹{$totalAmount} dispatched to {$seller->name}",
-                    ['icon'=>'📦','color'=>'blue','url'=>route('dispatches.show',$dispatch)]
+                    ['icon' => '📦', 'color' => 'blue', 'url' => route('dispatches.show', $dispatch)]
                 );
 
                 return $dispatch;
             });
 
-            return redirect()->route('dispatches.show',$dispatch)
-                ->with('success',"Dispatch {$dispatch->reference} created successfully.");
+            return redirect()->route('dispatches.show', $dispatch)
+                ->with('success', "Dispatch {$dispatch->reference} created successfully.");
 
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // SHOW — UNCHANGED
+    // ─────────────────────────────────────────────────────────────
     public function show(DispatchOrder $dispatch)
     {
-        $dispatch->load(['seller','user','items.product','payments']);
+        $dispatch->load(['seller', 'user', 'items.product', 'payments']);
         return view('dispatches.show', compact('dispatch'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // RECORD PAYMENT — UNCHANGED
+    // ─────────────────────────────────────────────────────────────
     public function recordPayment(Request $request, DispatchOrder $dispatch)
     {
         $request->validate([
-            'amount'    => ['required','numeric','min:0.01'],
-            'method'    => ['required','in:cash,upi,bank_transfer,cheque'],
-            'reference' => ['nullable','string','max:255'],
-            'paid_at'   => ['required','date'],
+            'amount'    => ['required', 'numeric', 'min:0.01'],
+            'method'    => ['required', 'in:cash,upi,bank_transfer,cheque'],
+            'reference' => ['nullable', 'string', 'max:255'],
+            'paid_at'   => ['required', 'date'],
         ]);
 
         DB::transaction(function () use ($request, $dispatch) {
@@ -149,7 +168,7 @@ class DispatchController extends Controller
 
             $newPaid = $dispatch->paid_amount + $request->amount;
             $status  = $newPaid >= $dispatch->total_amount ? 'paid' : 'partial';
-            $dispatch->update(['paid_amount'=>$newPaid,'payment_status'=>$status]);
+            $dispatch->update(['paid_amount' => $newPaid, 'payment_status' => $status]);
             $dispatch->seller->decrement('balance_due', $request->amount);
 
             ActivityLogger::log('payment_received', 'DispatchOrder',
@@ -158,6 +177,6 @@ class DispatchController extends Controller
             );
         });
 
-        return back()->with('success','Payment recorded.');
+        return back()->with('success', 'Payment recorded.');
     }
 }

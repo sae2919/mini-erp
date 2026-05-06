@@ -13,7 +13,7 @@ class SellerDispatchController extends Controller
         $dispatches = $seller->dispatchOrders()
             ->with('items.product')
             ->latest()
-            ->paginate(20);
+            ->paginate(10);
 
         return view('seller-dispatches.index', compact('dispatches','seller'));
     }

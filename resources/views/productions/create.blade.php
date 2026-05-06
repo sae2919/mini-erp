@@ -8,7 +8,6 @@
 
 @push('styles')
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css" rel="stylesheet"/>
 <style>
   :root {
     --surface:        #ffffff;
@@ -24,272 +23,91 @@
     --blue:           #3b82f6;
     --green:          #10b981;
     --danger:         #ef4444;
-    --shadow-sm:      0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm:      0 1px 3px rgba(0,0,0,0.06);
     --radius:         12px;
     --radius-sm:      8px;
   }
-
-  /* ── REMOVE SPINNER ARROWS FROM NUMBER INPUTS ── */
   input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  input[type="number"] {
-    -moz-appearance: textfield;
-  }
-
-  /* ── TWO-COLUMN LAYOUT ── */
-  .merge-layout {
-    display: grid;
-    grid-template-columns: 420px 1fr;
-    gap: 20px;
-    align-items: start;
-    font-family: 'DM Sans', sans-serif;
-  }
-  @media (max-width: 1100px) {
-    .merge-layout { grid-template-columns: 1fr; }
-  }
-
-  /* ── SHARED CARD ── */
-  .m-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
-    overflow: hidden;
-  }
-  .m-card-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border-soft);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--surface2);
-  }
-  .m-card-header-icon {
-    width: 34px; height: 34px;
-    background: var(--accent-light);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 17px;
-  }
-  .m-card-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type="number"] { -moz-appearance: textfield; }
+  .merge-layout { display: grid; grid-template-columns: 440px 1fr; gap: 20px; align-items: start; font-family: 'DM Sans', sans-serif; }
+  @media (max-width: 1100px) { .merge-layout { grid-template-columns: 1fr; } }
+  .m-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+  .m-card-header { padding: 16px 20px; border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; gap: 10px; background: var(--surface2); }
+  .m-card-header-icon { width: 34px; height: 34px; background: var(--accent-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+  .m-card-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
   .m-card-body { padding: 20px; }
-
-  /* ── ALERT ── */
-  .m-alert {
-    background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b;
-    padding: 11px 14px; border-radius: var(--radius-sm);
-    margin-bottom: 18px; font-size: 13px;
-  }
+  .m-alert { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 11px 14px; border-radius: var(--radius-sm); margin-bottom: 18px; font-size: 13px; }
   .m-alert ul { margin-top: 5px; padding-left: 16px; }
-
-  /* ── FORM GRID ── */
-  .m-form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-bottom: 20px;
-  }
+  .m-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
   .m-field { display: flex; flex-direction: column; gap: 5px; }
-  .m-label {
-    font-size: 11px; font-weight: 700; color: var(--text-secondary);
-    text-transform: uppercase; letter-spacing: 0.05em;
-  }
+  .m-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
   .m-required { color: var(--danger); }
-  .m-input {
-    padding: 9px 12px;
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px; color: var(--text-primary);
-    background: var(--surface); outline: none; width: 100%;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .m-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(91,77,222,0.12);
-  }
+  .m-input { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text-primary); background: var(--surface); outline: none; width: 100%; transition: border-color 0.15s; }
+  .m-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,77,222,0.12); }
   .m-field-error { font-size: 11px; color: var(--danger); margin-top: 2px; }
-
-  /* ── DIVIDER ── */
   .m-divider { border: none; border-top: 1px solid var(--border-soft); margin: 0 0 18px; }
-
-  /* ── SECTION ROW ── */
-  .m-section-row {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px;
-  }
+  .m-section-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .m-section-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
-
-  /* ── ITEMS TABLE (form) ── */
   .m-items-table { width: 100%; border-collapse: collapse; }
-  .m-items-table thead th {
-    padding: 8px 10px 10px;
-    font-size: 11px; font-weight: 700; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.04em;
-    text-align: left; border-bottom: 1.5px solid var(--border-soft);
-    background: var(--surface2);
-  }
+  .m-items-table thead th { padding: 8px 10px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; text-align: left; border-bottom: 1.5px solid var(--border-soft); background: var(--surface2); }
   .m-items-table thead th.r { text-align: right; }
   .m-item-row td { padding: 7px 10px; vertical-align: middle; }
   .m-item-row td.r { text-align: right; }
-
-  .m-row-input {
-    padding: 8px 10px;
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px; color: var(--text-primary);
-    background: var(--surface); outline: none; width: 100%;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .m-row-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(91,77,222,0.12);
-  }
+  .m-row-input { padding: 8px 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text-primary); background: var(--surface); outline: none; width: 100%; transition: border-color 0.15s; }
+  .m-row-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,77,222,0.12); }
   .m-row-input.r { text-align: right; }
-
-  .m-subtotal {
-    font-size: 13px; font-weight: 600;
-    color: var(--blue); font-family: 'DM Mono', monospace;
-    white-space: nowrap;
-  }
-
-  .m-del {
-    width: 27px; height: 27px; border: none;
-    background: #fee2e2; color: var(--danger);
-    border-radius: 6px; cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 16px; font-weight: 700; transition: background 0.15s;
-  }
+  .m-row-input[readonly] { background: var(--accent-light); color: var(--accent); font-weight: 600; cursor: default; border-color: var(--border-soft); }
+  .m-subtotal { font-size: 13px; font-weight: 600; color: var(--blue); font-family: 'DM Mono', monospace; white-space: nowrap; }
+  .m-del { width: 27px; height: 27px; border: none; background: #fee2e2; color: var(--danger); border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; transition: background 0.15s; }
   .m-del:hover { background: #fca5a5; }
-
-  /* ── TOTAL ROW ── */
-  .m-total-row {
-    display: flex; justify-content: flex-end; align-items: center;
-    gap: 12px; padding: 13px 10px 0;
-    border-top: 1.5px solid var(--border-soft); margin-top: 6px;
-  }
+  .m-total-row { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 13px 10px 0; border-top: 1.5px solid var(--border-soft); margin-top: 6px; }
   .m-total-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-  .m-total-value {
-    font-size: 17px; font-weight: 700; color: var(--text-primary);
-    font-family: 'DM Mono', monospace; min-width: 80px; text-align: right;
-  }
-
-  /* ── FORM ACTIONS ── */
-  .m-actions {
-    display: flex; gap: 10px; justify-content: flex-end;
-    padding-top: 18px; border-top: 1px solid var(--border-soft); margin-top: 18px;
-  }
-  .m-btn {
-    padding: 10px 20px; border-radius: var(--radius-sm);
-    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: all 0.15s;
-    display: inline-flex; align-items: center; gap: 6px;
-    text-decoration: none; border: none;
-  }
-  .m-btn-ghost {
-    background: transparent; color: var(--text-secondary);
-    border: 1.5px solid var(--border);
-  }
+  .m-total-value { font-size: 17px; font-weight: 700; color: var(--text-primary); font-family: 'DM Mono', monospace; min-width: 80px; text-align: right; }
+  .m-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 18px; border-top: 1px solid var(--border-soft); margin-top: 18px; }
+  .m-btn { padding: 10px 20px; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; border: none; }
+  .m-btn-ghost { background: transparent; color: var(--text-secondary); border: 1.5px solid var(--border); }
   .m-btn-ghost:hover { background: var(--surface2); }
-  .m-btn-primary {
-    background: var(--accent); color: #fff;
-    box-shadow: 0 2px 10px rgba(91,77,222,0.35);
-  }
+  .m-btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 10px rgba(91,77,222,0.35); }
   .m-btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
-  .m-btn-add {
-    background: var(--accent-light); color: var(--accent);
-    border: 1.5px solid transparent; padding: 6px 13px; font-size: 12px;
-  }
+  .m-btn-add { background: var(--accent-light); color: var(--accent); border: 1.5px solid transparent; padding: 6px 13px; font-size: 12px; }
   .m-btn-add:hover { border-color: var(--accent); }
-
-  /* ── REPORT FILTERS ── */
-  .r-filters {
-    padding: 13px 20px; background: var(--surface2);
-    border-bottom: 1px solid var(--border-soft);
-    display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
-  }
+  /* report styles */
+  .r-filters { padding: 13px 20px; background: var(--surface2); border-bottom: 1px solid var(--border-soft); display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
   .r-filter-group { display: flex; flex-direction: column; gap: 5px; }
-  .r-filter-group label {
-    font-size: 11px; font-weight: 700; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.04em;
-  }
-  .r-filter-group input,
-  .r-filter-group select {
-    padding: 7px 11px; min-width: 126px;
-    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-    font-family: 'DM Sans', sans-serif; font-size: 13px;
-    color: var(--text-primary); background: var(--surface); outline: none;
-    transition: border-color 0.15s;
-  }
-  .r-filter-group input:focus,
-  .r-filter-group select:focus { border-color: var(--accent); }
-  .r-btn-generate {
-    padding: 8px 18px; background: var(--accent); color: #fff;
-    border: none; border-radius: var(--radius-sm);
-    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
-    cursor: pointer; align-self: flex-end;
-    box-shadow: 0 2px 8px rgba(91,77,222,0.28); transition: background 0.15s;
-  }
-  .r-btn-generate:hover { background: var(--accent-hover); }
-
-  /* ── REPORT TABLE ── */
+  .r-filter-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .r-filter-group input, .r-filter-group select { padding: 7px 11px; min-width: 126px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text-primary); background: var(--surface); outline: none; }
+  .r-btn-generate { padding: 8px 18px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; align-self: flex-end; }
   .r-table-wrap { overflow-x: auto; }
   .r-table { width: 100%; border-collapse: collapse; font-family: 'DM Sans', sans-serif; }
-  .r-table thead th {
-    padding: 10px 14px; text-align: left;
-    font-size: 11px; font-weight: 700; color: var(--text-secondary);
-    text-transform: uppercase; letter-spacing: 0.04em;
-    white-space: nowrap; background: var(--surface2);
-    border-bottom: 1.5px solid var(--border);
-  }
-  .r-table thead th.num   { text-align: right; }
+  .r-table thead th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; background: var(--surface2); border-bottom: 1.5px solid var(--border); }
+  .r-table thead th.num { text-align: right; }
   .r-table thead th.col-p { background: #eff6ff; }
   .r-table thead th.col-d { background: #eff6ff; }
   .r-table thead th.col-s { background: #ecfdf5; }
-
-  .r-table tbody tr { border-bottom: 1px solid var(--border-soft); transition: background 0.1s; }
-  .r-table tbody tr:last-child { border-bottom: none; }
+  .r-table tbody tr { border-bottom: 1px solid var(--border-soft); }
   .r-table tbody tr:hover { background: #fafbfc; }
   .r-table td { padding: 10px 14px; vertical-align: middle; font-size: 13px; }
   .r-table td.num { text-align: right; font-family: 'DM Mono', monospace; }
-
   .r-name { font-weight: 600; color: var(--text-primary); font-size: 13px; }
-  .r-sku  { font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; margin-top: 1px; }
-
+  .r-sku { font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; margin-top: 1px; }
   .r-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
   .r-badge-Electronics { background: #eff6ff; color: #1d4ed8; }
   .r-badge-Clothing    { background: #fdf4ff; color: #7e22ce; }
   .r-badge-Stationery  { background: #fff7ed; color: #c2410c; }
   .r-badge-Food        { background: #f0fdf4; color: #166534; }
-
-  .r-dispatched { color: var(--blue);  font-weight: 600; }
+  .r-dispatched { color: var(--blue); font-weight: 600; }
   .r-sold       { color: var(--green); font-weight: 600; }
-  .r-total      { font-weight: 700;    color: var(--text-primary); }
-
-  .r-table tfoot td {
-    padding: 11px 14px; font-weight: 700;
-    background: var(--surface2); border-top: 1.5px solid var(--border);
-    font-family: 'DM Mono', monospace; font-size: 13px;
-  }
-  .r-table tfoot td:first-child,
-  .r-table tfoot td:nth-child(2) { font-family: 'DM Sans', sans-serif; }
+  .r-total      { font-weight: 700; color: var(--text-primary); }
+  .r-table tfoot td { padding: 11px 14px; font-weight: 700; background: var(--surface2); border-top: 1.5px solid var(--border); font-family: 'DM Mono', monospace; font-size: 13px; }
+  .r-table tfoot td:first-child, .r-table tfoot td:nth-child(2) { font-family: 'DM Sans', sans-serif; }
 </style>
 @endpush
 
 @section('content')
 <div class="merge-layout">
 
-  {{-- ══════════════════════════════════════
-       LEFT — RECORD PRODUCTION BATCH FORM
-  ══════════════════════════════════════ --}}
+  {{-- LEFT: FORM --}}
   <div class="m-card">
     <div class="m-card-header">
       <div class="m-card-header-icon">🏭</div>
@@ -300,32 +118,25 @@
       @if($errors->any())
         <div class="m-alert">
           <strong>Please fix the following:</strong>
-          <ul>
-            @foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach
-          </ul>
+          <ul>@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
         </div>
       @endif
 
       <form method="POST" action="{{ route('productions.store') }}" id="prod-form">
         @csrf
-
         <div class="m-form-grid">
           <div class="m-field">
             <label class="m-label">Production Date <span class="m-required">*</span></label>
             <input type="date" name="production_date" class="m-input"
               value="{{ old('production_date', date('Y-m-d')) }}"
               max="{{ date('Y-m-d') }}" required />
-            @error('production_date')
-              <span class="m-field-error">{{ $message }}</span>
-            @enderror
+            @error('production_date')<span class="m-field-error">{{ $message }}</span>@enderror
           </div>
           <div class="m-field">
             <label class="m-label">Notes</label>
             <input type="text" name="notes" class="m-input"
               value="{{ old('notes') }}" placeholder="Batch notes..." />
-            @error('notes')
-              <span class="m-field-error">{{ $message }}</span>
-            @enderror
+            @error('notes')<span class="m-field-error">{{ $message }}</span>@enderror
           </div>
         </div>
 
@@ -340,10 +151,10 @@
           <thead>
             <tr>
               <th style="width:38%">Product</th>
-<th class="r" style="width:16%">Qty</th>
-<th class="r" style="width:20%">Unit Cost (₹)</th>
-<th class="r" style="width:18%">Subtotal</th>
-<th style="width:8%"></th>
+              <th class="r" style="width:16%">Qty</th>
+              <th class="r" style="width:22%">Unit Cost (₹)</th>
+              <th class="r" style="width:16%">Subtotal</th>
+              <th style="width:8%"></th>
             </tr>
           </thead>
           <tbody id="items-body">
@@ -351,11 +162,10 @@
               @foreach(old('items') as $i => $item)
                 <tr class="m-item-row">
                   <td>
-                    <select name="items[{{ $i }}][product_id]" class="m-row-input m-sel" required>
-                      <option value="">-- Search product --</option>
+                    <select name="items[{{ $i }}][product_id]" class="m-row-input" onchange="onProductChange(this)" required>
+                      <option value="">-- Select product --</option>
                       @foreach($products as $p)
-                        <option value="{{ $p->id }}" data-cost="{{ $p->production_cost }}"
-                          {{ old("items.{$i}.product_id") == $p->id ? 'selected' : '' }}>
+                        <option value="{{ $p->id }}" {{ old("items.{$i}.product_id") == $p->id ? 'selected' : '' }}>
                           {{ $p->name }} ({{ $p->sku }})
                         </option>
                       @endforeach
@@ -363,14 +173,16 @@
                   </td>
                   <td class="r">
                     <input type="number" name="items[{{ $i }}][quantity]"
-                      class="m-row-input r" value="{{ $item['quantity'] ?? 1 }}" min="1" required />
+                      class="m-row-input r" value="{{ $item['quantity'] ?? 1 }}"
+                      min="1" onchange="calcRowEl(this.closest('tr'))" required />
                   </td>
                   <td class="r">
                     <input type="number" name="items[{{ $i }}][unit_cost]"
-                      class="m-row-input r" value="{{ $item['unit_cost'] ?? '' }}" step="0.01" min="0" required />
+                      class="m-row-input r" value="{{ $item['unit_cost'] ?? '' }}"
+                      step="0.01" min="0" readonly required />
                   </td>
                   <td class="r"><span class="m-subtotal">₹0.00</span></td>
-                  <td><button type="button" class="m-del">×</button></td>
+                  <td><button type="button" class="m-del" onclick="this.closest('tr').remove(); calcTotal()">×</button></td>
                 </tr>
               @endforeach
             @endif
@@ -393,19 +205,15 @@
           <button type="submit" class="m-btn m-btn-primary">🏭 Record Production</button>
         </div>
       </form>
-
     </div>
   </div>
 
-  {{-- ══════════════════════════════════════
-       RIGHT — STOCK MOVEMENT REPORT
-  ══════════════════════════════════════ --}}
+  {{-- RIGHT: STOCK MOVEMENT REPORT --}}
   <div class="m-card">
     <div class="m-card-header">
       <div class="m-card-header-icon">📈</div>
       <span class="m-card-title">Stock Movement Report</span>
     </div>
-
     <div class="r-filters">
       <div class="r-filter-group">
         <label>From</label>
@@ -424,9 +232,13 @@
           @endforeach
         </select>
       </div>
-      <button class="r-btn-generate" onclick="filterReport()">Generate</button>
-    </div>
+<button class="r-btn-generate" onclick="filterReport()">Generate</button>
+</div>
 
+<a href="{{ url('/export/stock-report') . '?' . http_build_query(request()->all()) }}"
+   style="background:#16a34a;color:white;padding:8px 14px;border-radius:6px;margin-left:10px;">
+   Export Excel
+</a>
     <div class="r-table-wrap">
       <table class="r-table">
         <thead>
@@ -451,9 +263,7 @@
                   <div class="r-sku">{{ $row->product_sku }}</div>
                 @endif
               </td>
-              <td>
-                <span class="r-badge r-badge-{{ $slug }}">{{ $row->category_name }}</span>
-              </td>
+              <td><span class="r-badge r-badge-{{ $slug }}">{{ $row->category_name }}</span></td>
               <td class="num">{{ number_format($row->produced) }}</td>
               <td class="num r-dispatched">{{ number_format($row->dispatched) }}</td>
               <td class="num r-sold">{{ number_format($row->sold) }}</td>
@@ -462,108 +272,111 @@
               <td class="num r-total">{{ number_format($row->total_stock) }}</td>
             </tr>
           @empty
-            <tr>
-              <td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">
-                No stock data available
-              </td>
-            </tr>
+            <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">No stock data available</td></tr>
           @endforelse
         </tbody>
         <tfoot>
-          <tr>
-            <td>Total</td><td></td>
-            <td class="num">{{ number_format($report->sum('produced')) }}</td>
-            <td class="num r-dispatched">{{ number_format($report->sum('dispatched')) }}</td>
-            <td class="num r-sold">{{ number_format($report->sum('sold')) }}</td>
-            <td class="num">{{ number_format($report->sum('warehouse')) }}</td>
-            <td class="num">{{ number_format($report->sum('with_sellers')) }}</td>
-            <td class="num r-total">{{ number_format($report->sum('total_stock')) }}</td>
-          </tr>
-        </tfoot>
+  {{-- PAGE TOTAL --}}
+  <tr>
+    <td colspan="2"><strong>Page Total</strong></td>
+
+    <td class="num">{{ number_format($report->getCollection()->sum('produced')) }}</td>
+    <td class="num r-dispatched">{{ number_format($report->getCollection()->sum('dispatched')) }}</td>
+    <td class="num r-sold">{{ number_format($report->getCollection()->sum('sold')) }}</td>
+    <td class="num">{{ number_format($report->getCollection()->sum('warehouse')) }}</td>
+    <td class="num">{{ number_format($report->getCollection()->sum('with_sellers')) }}</td>
+    <td class="num r-total">{{ number_format($report->getCollection()->sum('total_stock')) }}</td>
+  </tr>
+
+  {{-- GRAND TOTAL --}}
+  <tr style="background:#f9fafb;font-weight:bold;">
+    <td colspan="2">Grand Total</td>
+
+    <td class="num">{{ number_format($totals['produced']) }}</td>
+    <td class="num r-dispatched">{{ number_format($totals['dispatched']) }}</td>
+    <td class="num r-sold">{{ number_format($totals['sold']) }}</td>
+    <td class="num">{{ number_format($totals['warehouse']) }}</td>
+    <td class="num">{{ number_format($totals['with_sellers']) }}</td>
+    <td class="num r-total">{{ number_format($totals['total_stock']) }}</td>
+  </tr>
+</tfoot>
       </table>
     </div>
-
+    <div style="padding:15px;">
+    {{ $report->links() }}
+</div>
   </div>
 
 </div>
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script>
-const PRODUCTS = @json($productsJs);
+// ── Cost lookup map ──────────────────────
+const COST_MAP = {};
+@foreach($productsJs as $p)
+COST_MAP["{{ $p['id'] }}"] = {{ (float)($p['cost']) }};
+@endforeach
 
-let idx = {{ old('items') ? count(old('items')) : 0 }};
+// ── Product options ──────────────────────
+const PRODUCT_OPTS = `<option value="">-- Select product --</option>`
+@foreach($productsJs as $p)
+    + `<option value="{{ $p['id'] }}">{{ addslashes($p['name']) }}</option>`
+@endforeach
+;
 
-function initTomSelect(selectEl) {
-    new TomSelect(selectEl, {
-        placeholder: '-- Search product --',
-        searchField: ['text'],
-        maxOptions:  200,
-        create:      false,
-        onChange(val) {
-            const row  = selectEl.closest('.m-item-row');
-            const cost = row.querySelector('input[name*="unit_cost"]');
-            const opt  = selectEl.options[selectEl.selectedIndex];
-            if (cost && !cost.value && opt && opt.dataset.cost) {
-                cost.value = opt.dataset.cost;
+let rowIdx = 0;
+
+// ── NEW: Prevent duplicate products ─────────────────────────────
+function getSelectedProducts() {
+    let selected = [];
+    document.querySelectorAll('select[name*="product_id"]').forEach(s => {
+        if (s.value) selected.push(s.value);
+    });
+    return selected;
+}
+
+function updateDropdowns() {
+    const selected = getSelectedProducts();
+
+    document.querySelectorAll('select[name*="product_id"]').forEach(select => {
+        const current = select.value;
+
+        Array.from(select.options).forEach(opt => {
+            if (!opt.value) return;
+
+            if (selected.includes(opt.value) && opt.value !== current) {
+                opt.style.display = "none";   // ✅ HIDE
+            } else {
+                opt.style.display = "block"; // ✅ SHOW
             }
-            calcRowEl(row);
-        }
+        });
     });
 }
 
-function calcRowEl(row) {
-    const qty  = row.querySelector('input[name*="quantity"]');
+// ── Product change ───────────────────────
+function onProductChange(sel) {
+    const row  = sel.closest('.m-item-row');
     const cost = row.querySelector('input[name*="unit_cost"]');
-    const sub  = row.querySelector('.m-subtotal');
-    if (!qty || !cost || !sub) return;
-    const v = (parseFloat(qty.value) || 0) * (parseFloat(cost.value) || 0);
-    sub.textContent = '₹' + v.toFixed(2);
+    const val  = sel.value;
+
+    cost.value = (val && COST_MAP[val] !== undefined)
+        ? parseFloat(COST_MAP[val]).toFixed(2)
+        : '';
+
+    calcRowEl(row);
+    updateDropdowns(); // ✅ NEW
+}
+
+// ── Row subtotal ─────────────────────────
+function calcRowEl(row) {
+    const qty  = parseFloat(row.querySelector('input[name*="quantity"]').value) || 0;
+    const cost = parseFloat(row.querySelector('input[name*="unit_cost"]').value)  || 0;
+    row.querySelector('.m-subtotal').textContent = '₹' + (qty * cost).toFixed(2);
     calcTotal();
 }
 
-function addRow() {
-    const i    = idx++;
-    const opts = PRODUCTS.map(p =>
-        `<option value="${p.id}" data-cost="${p.cost}">${p.name}</option>`
-    ).join('');
-
-    const tr = document.createElement('tr');
-    tr.className = 'm-item-row';
-    tr.innerHTML = `
-        <td>
-            <select name="items[${i}][product_id]" class="m-row-input m-sel" required>
-                <option value="">-- Search product --</option>${opts}
-            </select>
-        </td>
-        <td class="r">
-            <input type="number" name="items[${i}][quantity]"
-                class="m-row-input r" min="1" value="1" required />
-        </td>
-        <td class="r">
-            <input type="number" name="items[${i}][unit_cost]"
-                class="m-row-input r" step="0.01" min="0" placeholder="0.00" required />
-        </td>
-        <td class="r"><span class="m-subtotal">₹0.00</span></td>
-        <td><button type="button" class="m-del">×</button></td>
-    `;
-
-    document.getElementById('items-body').appendChild(tr);
-
-    const sel  = tr.querySelector('.m-sel');
-    const qty  = tr.querySelector('input[name*="quantity"]');
-    const cost = tr.querySelector('input[name*="unit_cost"]');
-
-    initTomSelect(sel);
-
-    qty.addEventListener('input',  () => calcRowEl(tr));
-    cost.addEventListener('input', () => calcRowEl(tr));
-    tr.querySelector('.m-del').addEventListener('click', () => {
-        tr.remove(); calcTotal();
-    });
-}
-
+// ── Total ────────────────────────────────
 function calcTotal() {
     let t = 0;
     document.querySelectorAll('.m-subtotal').forEach(s => {
@@ -572,6 +385,42 @@ function calcTotal() {
     document.getElementById('grand-total').textContent = '₹' + t.toFixed(2);
 }
 
+// ── Add row ──────────────────────────────
+function addRow() {
+    const i  = rowIdx++;
+    const tr = document.createElement('tr');
+    tr.className = 'm-item-row';
+    tr.innerHTML = `
+        <td>
+            <select name="items[${i}][product_id]"
+                    class="m-row-input"
+                    onchange="onProductChange(this)" required>
+                ${PRODUCT_OPTS}
+            </select>
+        </td>
+        <td class="r">
+            <input type="number" name="items[${i}][quantity]"
+                   class="m-row-input r" min="1" value="1"
+                   onchange="calcRowEl(this.closest('tr'))"
+                   oninput="calcRowEl(this.closest('tr'))" required />
+        </td>
+        <td class="r">
+            <input type="number" name="items[${i}][unit_cost]"
+                   class="m-row-input r" step="0.01" min="0"
+                   placeholder="—" readonly required />
+        </td>
+        <td class="r"><span class="m-subtotal">₹0.00</span></td>
+        <td>
+            <button type="button" class="m-del"
+                    onclick="this.closest('tr').remove(); calcTotal(); updateDropdowns();">×</button>
+        </td>
+    `;
+    document.getElementById('items-body').appendChild(tr);
+
+    updateDropdowns(); // ✅ NEW
+}
+
+// ── Report filter ────────────────────────
 function filterReport() {
     const cat = document.getElementById('catFilter').value;
     document.querySelectorAll('#reportBody tr').forEach(tr => {
@@ -579,17 +428,25 @@ function filterReport() {
     });
 }
 
-document.getElementById('add-row').addEventListener('click', addRow);
-
-document.getElementById('prod-form').addEventListener('submit', e => {
+// ── Submit validation ────────────────────
+document.getElementById('prod-form').addEventListener('submit', function(e) {
     if (!document.querySelectorAll('.m-item-row').length) {
         e.preventDefault();
         alert('Add at least one product.');
     }
 });
 
-document.querySelectorAll('.m-sel').forEach(initTomSelect);
+// ── Init ─────────────────────────────────
+document.getElementById('add-row').addEventListener('click', addRow);
 
-@if(!old('items')) addRow(); @else calcTotal(); @endif
+(function init() {
+    const existingRows = document.querySelectorAll('.m-item-row').length;
+    if (existingRows === 0) {
+        addRow();
+    } else {
+        calcTotal();
+        updateDropdowns(); // ✅ NEW
+    }
+})();
 </script>
 @endpush

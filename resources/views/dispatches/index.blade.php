@@ -98,7 +98,9 @@
                 </td></tr>
                 @endforelse
             </tbody>
+            
         </table>
+        
         <div class="px-4 py-3 border-t border-gray-100">{{ $dispatches->links() }}</div>
     </div>
 </div>

@@ -18,90 +18,90 @@ class ProductionController extends Controller
     {
         $productions = Production::with(['user', 'items.product'])
             ->latest()
-            ->paginate(20);
+            ->paginate(10)
+            ->withQueryString();
 
         $totalCost  = Production::sum('total_cost');
         $thisMonth  = Production::where('production_date', '>=', now()->startOfMonth())
-            ->sum('total_cost');
+                                ->sum('total_cost');
         $totalUnits = ProductionItem::sum('quantity');
 
         return view('productions.index', compact('productions', 'totalCost', 'thisMonth', 'totalUnits'));
     }
 
     // ─────────────────────────────────────────────────────────────
-    // CREATE — form + stock movement report side by side
+    // CREATE
     // ─────────────────────────────────────────────────────────────
     public function create()
-    {
-        // Products for the form dropdown
-        $products = Product::active()
-            ->with('category')
-            ->orderBy('name')
-            ->get();
+{
+    $products = Product::active()
+        ->with('category')
+        ->orderBy('name')
+        ->get();
 
-        // Pre-mapped for JS — avoids ALL Blade @php/@json parser issues
-        $productsJs = $products->map(fn($p) => [
-            'id'   => $p->id,
-            'name' => $p->name . ' (' . $p->sku . ')',
-            'cost' => (float) $p->production_cost,
-        ]);
+    // Falls back to cost_price when production_cost is not set
+    $productsJs = $products->map(fn($p) => [
+        'id'   => $p->id,
+        'name' => $p->name . ' (' . $p->sku . ')',
+        'cost' => (float) ($p->production_cost > 0 ? $p->production_cost : $p->cost_price),
+    ]);
 
-        // Stock movement report — correlated subqueries (no cartesian product)
-        $report = DB::table('products')
-            ->join('categories', 'products.category_id', '=', 'categories.id')
-            ->select(
-                'products.id',
-                'products.name           as product_name',
-                'products.sku            as product_sku',
-                'categories.name         as category_name',
-                'products.stock_quantity as warehouse',
-
-                // Total units produced
-                DB::raw('(
-                    SELECT COALESCE(SUM(pi.quantity), 0)
-                    FROM production_items pi
-                    WHERE pi.product_id = products.id
-                ) as produced'),
-
-                // Total units dispatched to sellers
-                DB::raw('(
-                    SELECT COALESCE(SUM(di.quantity), 0)
-                    FROM dispatch_items di
-                    WHERE di.product_id = products.id
-                ) as dispatched'),
-
-                // Total units sold (direct / POS sales)
-                DB::raw('(
-                    SELECT COALESCE(SUM(si.quantity), 0)
-                    FROM sale_items si
-                    WHERE si.product_id = products.id
-                ) as sold'),
-
-                // With sellers = dispatched minus what sellers have sold
-                // Uses seller_sale_items NOT sale_items to avoid negative values
-                DB::raw('(
-    GREATEST(0,
-        (SELECT COALESCE(SUM(di.quantity), 0) FROM dispatch_items di WHERE di.product_id = products.id)
-      - (SELECT COALESCE(SUM(ss.quantity), 0) FROM seller_sale_items ss WHERE ss.product_id = products.id)
+    $query = DB::table('products')
+    ->join('categories', 'products.category_id', '=', 'categories.id')
+    ->select(
+        'products.id',
+        'products.name as product_name',
+        'products.sku as product_sku',
+        'categories.name as category_name',
+        'products.stock_quantity as warehouse',
+        DB::raw('(SELECT COALESCE(SUM(pi.quantity),0) FROM production_items pi WHERE pi.product_id = products.id) as produced'),
+        DB::raw('(SELECT COALESCE(SUM(di.quantity),0) FROM dispatch_items di WHERE di.product_id = products.id) as dispatched'),
+        DB::raw('(SELECT COALESCE(SUM(si.quantity),0) FROM sale_items si WHERE si.product_id = products.id) as sold'),
+        DB::raw('(GREATEST(0,
+            (SELECT COALESCE(SUM(di.quantity),0) FROM dispatch_items di WHERE di.product_id = products.id)
+          - (SELECT COALESCE(SUM(ss.quantity),0) FROM seller_sale_items ss WHERE ss.product_id = products.id)
+        )) as with_sellers'),
+        DB::raw('(products.stock_quantity +
+            GREATEST(0,
+                (SELECT COALESCE(SUM(di.quantity),0) FROM dispatch_items di WHERE di.product_id = products.id)
+              - (SELECT COALESCE(SUM(ss.quantity),0) FROM seller_sale_items ss WHERE ss.product_id = products.id)
+            )
+        ) as total_stock')
     )
-) as with_sellers'),
+    ->where('products.is_active', true)
+    ->orderBy('categories.name')
+    ->orderBy('products.name');
 
-DB::raw('(
-    products.stock_quantity
-  + GREATEST(0,
-        (SELECT COALESCE(SUM(di.quantity), 0) FROM dispatch_items di WHERE di.product_id = products.id)
-      - (SELECT COALESCE(SUM(ss.quantity), 0) FROM seller_sale_items ss WHERE ss.product_id = products.id)
-    )
-) as total_stock')
 
-            ) // <-- closing ->select()
-            ->where('products.is_active', true)
-            ->orderBy('categories.name')
-            ->orderBy('products.name')
-            ->get();
+// 🔥 GET FULL DATA (for totals)
+$allData = $query->get();
 
-        return view('productions.create', compact('products', 'productsJs', 'report'));
-    }
+$totals = [
+    'produced' => $allData->sum('produced'),
+    'dispatched' => $allData->sum('dispatched'),
+    'sold' => $allData->sum('sold'),
+    'warehouse' => $allData->sum('warehouse'),
+    'with_sellers' => $allData->sum('with_sellers'),
+    'total_stock' => $allData->sum('total_stock'),
+];
+
+
+// 🔥 PAGINATION (10 per page)
+$page = request()->page ?? 1;
+
+$report = new \Illuminate\Pagination\LengthAwarePaginator(
+    $allData->forPage($page, 10),
+    $allData->count(),
+    10,
+    $page,
+    [
+        'path' => request()->url(),
+        'query' => request()->query()
+    ]
+);
+
+    return view('productions.create', compact('products', 'productsJs', 'report', 'totals'));
+}
 
     // ─────────────────────────────────────────────────────────────
     // STORE
@@ -141,9 +141,8 @@ DB::raw('(
                     'subtotal'      => $subtotal,
                 ]);
 
-                // Atomic increment — safe against race conditions
                 Product::where('id', $item['product_id'])
-                    ->increment('stock_quantity', $item['quantity']);
+                       ->increment('stock_quantity', $item['quantity']);
 
                 $totalCost  += $subtotal;
                 $totalUnits += $item['quantity'];
@@ -168,7 +167,6 @@ DB::raw('(
     public function show(Production $production)
     {
         $production->load(['items.product.category', 'user']);
-
         return view('productions.show', compact('production'));
     }
 
@@ -180,7 +178,7 @@ DB::raw('(
         DB::transaction(function () use ($production) {
             foreach ($production->items as $item) {
                 Product::where('id', $item->product_id)
-                    ->decrement('stock_quantity', $item->quantity);
+                       ->decrement('stock_quantity', $item->quantity);
             }
 
             ActivityLogger::deleted(
@@ -195,4 +193,56 @@ DB::raw('(
             ->route('productions.index')
             ->with('success', 'Production batch deleted. Stock reversed.');
     }
+    public function exportStockReport(Request $request)
+{
+    $data = DB::table('products')
+        ->join('categories', 'products.category_id', '=', 'categories.id')
+        ->select(
+            'products.name as product',
+            'categories.name as category',
+            'products.stock_quantity as warehouse',
+            DB::raw('(SELECT COALESCE(SUM(pi.quantity),0) FROM production_items pi WHERE pi.product_id = products.id) as produced'),
+            DB::raw('(SELECT COALESCE(SUM(di.quantity),0) FROM dispatch_items di WHERE di.product_id = products.id) as dispatched'),
+            DB::raw('(SELECT COALESCE(SUM(si.quantity),0) FROM sale_items si WHERE si.product_id = products.id) as sold'),
+            DB::raw('(products.stock_quantity) as total_stock')
+        )
+        ->get();
+
+    $filename = "stock_report.xlsx";
+
+    $headers = [
+        "Content-Type" => "text/csv",
+        "Content-Disposition" => "attachment; filename=$filename",
+    ];
+
+    $callback = function () use ($data) {
+        $file = fopen('php://output', 'w');
+
+        fputcsv($file, [
+            'Product',
+            'Category',
+            'Produced',
+            'Dispatched',
+            'Sold',
+            'Warehouse',
+            'Total Stock'
+        ]);
+
+        foreach ($data as $row) {
+            fputcsv($file, [
+                $row->product,
+                $row->category,
+                $row->produced,
+                $row->dispatched,
+                $row->sold,
+                $row->warehouse,
+                $row->total_stock
+            ]);
+        }
+
+        fclose($file);
+    };
+
+    return response()->stream($callback, 200, $headers);
+}
 }

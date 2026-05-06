@@ -10,38 +10,52 @@ use Illuminate\Support\Facades\Hash;
 
 class SellerController extends Controller
 {
+    // ─────────────────────────────────────────────────────────────
+    // INDEX  ← per_page support added; everything else unchanged
+    // ─────────────────────────────────────────────────────────────
     public function index(Request $request)
     {
+        $perPage = (int) $request->input('per_page', 20);
+        $perPage = in_array($perPage, [10, 20, 50, 100]) ? $perPage : 10;
+
         $sellers = Seller::with('user')
-            ->withSum('sales as total_sales','total_amount')
+            ->withSum('sales as total_sales', 'total_amount')
             ->withCount('sales')
             ->when($request->search, fn($q) => $q->where(fn($q2) =>
-                $q2->where('name','like','%'.$request->search.'%')
-                   ->orWhere('region','like','%'.$request->search.'%')
+                $q2->where('name',   'like', '%' . $request->search . '%')
+                   ->orWhere('region', 'like', '%' . $request->search . '%')
             ))
-            ->orderBy('name')->paginate(20)->withQueryString();
+            ->orderBy('name')
+            ->paginate($perPage)
+            ->withQueryString();
 
         return view('sellers.index', compact('sellers'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // CREATE — UNCHANGED
+    // ─────────────────────────────────────────────────────────────
     public function create()
     {
         return view('sellers.create');
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // STORE — UNCHANGED
+    // ─────────────────────────────────────────────────────────────
     public function store(Request $request)
     {
         $request->validate([
-            'name'           => ['required','string','max:255'],
-            'phone'          => ['nullable','string','max:20'],
-            'email'          => ['nullable','email'],
-            'address'        => ['nullable','string'],
-            'region'         => ['nullable','string','max:100'],
-            'credit_limit'   => ['nullable','numeric','min:0'],
-            'notes'          => ['nullable','string'],
-            'create_login'   => ['nullable','boolean'],
-            'login_email'    => ['required_if:create_login,1','nullable','email','unique:users,email'],
-            'login_password' => ['required_if:create_login,1','nullable','min:8'],
+            'name'           => ['required', 'string', 'max:255'],
+            'phone'          => ['nullable', 'string', 'max:20'],
+            'email'          => ['nullable', 'email'],
+            'address'        => ['nullable', 'string'],
+            'region'         => ['nullable', 'string', 'max:100'],
+            'credit_limit'   => ['nullable', 'numeric', 'min:0'],
+            'notes'          => ['nullable', 'string'],
+            'create_login'   => ['nullable', 'boolean'],
+            'login_email'    => ['required_if:create_login,1', 'nullable', 'email', 'unique:users,email'],
+            'login_password' => ['required_if:create_login,1', 'nullable', 'min:8'],
         ]);
 
         $userId = null;
@@ -67,54 +81,67 @@ class SellerController extends Controller
         ]);
 
         ActivityLogger::created($seller,
-            "Seller \"{$seller->name}\" added".($request->create_login ? ' with login access' : '')
+            "Seller \"{$seller->name}\" added" . ($request->create_login ? ' with login access' : '')
         );
 
         return redirect()->route('sellers.index')
-            ->with('success','Seller added'.($request->create_login ? ' with login access.' : '.'));
+            ->with('success', 'Seller added' . ($request->create_login ? ' with login access.' : '.'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // SHOW — UNCHANGED
+    // ─────────────────────────────────────────────────────────────
     public function show(Seller $seller)
     {
         $seller->load([
             'stocks.product',
-            'dispatchOrders' => fn($q)=>$q->latest()->take(10),
-            'sales'          => fn($q)=>$q->latest()->take(10),
-            'payments'       => fn($q)=>$q->latest()->take(5),
+            'dispatchOrders' => fn($q) => $q->latest()->take(10),
+            'sales'          => fn($q) => $q->latest()->take(10),
+            'payments'       => fn($q) => $q->latest()->take(5),
         ]);
+
         $totalDispatched = $seller->dispatchOrders()->sum('total_amount');
         $totalPaid       = $seller->payments()->sum('amount');
         $totalSales      = $seller->sales()->sum('total_amount');
         $totalCommission = $seller->commissions()->sum('amount');
-        $pendingComm     = $seller->commissions()->where('status','pending')->sum('amount');
-        return view('sellers.show', compact('seller','totalDispatched','totalPaid','totalSales','totalCommission','pendingComm'));
+        $pendingComm     = $seller->commissions()->where('status', 'pending')->sum('amount');
+
+        return view('sellers.show', compact(
+            'seller', 'totalDispatched', 'totalPaid', 'totalSales', 'totalCommission', 'pendingComm'
+        ));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // EDIT — UNCHANGED
+    // ─────────────────────────────────────────────────────────────
     public function edit(Seller $seller)
     {
         return view('sellers.edit', compact('seller'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // UPDATE — UNCHANGED
+    // ─────────────────────────────────────────────────────────────
     public function update(Request $request, Seller $seller)
     {
         $request->validate([
-            'name'         => ['required','string','max:255'],
-            'phone'        => ['nullable','string','max:20'],
-            'email'        => ['nullable','email'],
-            'address'      => ['nullable','string'],
-            'region'       => ['nullable','string','max:100'],
-            'credit_limit' => ['nullable','numeric','min:0'],
+            'name'         => ['required', 'string', 'max:255'],
+            'phone'        => ['nullable', 'string', 'max:20'],
+            'email'        => ['nullable', 'email'],
+            'address'      => ['nullable', 'string'],
+            'region'       => ['nullable', 'string', 'max:100'],
+            'credit_limit' => ['nullable', 'numeric', 'min:0'],
             'is_active'    => ['nullable'],
-            'notes'        => ['nullable','string'],
+            'notes'        => ['nullable', 'string'],
         ]);
 
         $seller->update([
-            ...$request->only(['name','phone','email','address','region','credit_limit','notes']),
+            ...$request->only(['name', 'phone', 'email', 'address', 'region', 'credit_limit', 'notes']),
             'is_active' => $request->has('is_active'),
         ]);
 
         ActivityLogger::updated($seller, "Seller \"{$seller->name}\" updated");
 
-        return redirect()->route('sellers.show',$seller)->with('success','Seller updated.');
+        return redirect()->route('sellers.show', $seller)->with('success', 'Seller updated.');
     }
 }

@@ -122,6 +122,29 @@ const myStock = @json($stockData);
 
 let idx = 0;
 
+// ─────────────────────────────────────────────────────────────────────
+// Hides already-selected products from every other row's dropdown.
+// ─────────────────────────────────────────────────────────────────────
+function refreshSelects() {
+    const rows = document.querySelectorAll('.item-row');
+
+    const selected = {};
+    rows.forEach(row => {
+        const sel = row.querySelector('.prod-sel');
+        if (sel.value) selected[sel.value] = sel;
+    });
+
+    rows.forEach(row => {
+        const sel = row.querySelector('.prod-sel');
+        Array.from(sel.options).forEach(opt => {
+            if (!opt.value) return;
+            const takenByOther = selected[opt.value] && selected[opt.value] !== sel;
+            opt.hidden   = takenByOther;
+            opt.disabled = takenByOther;
+        });
+    });
+}
+
 function addRow() {
     const i    = idx++;
     const opts = myStock.map(s =>
@@ -154,10 +177,7 @@ function addRow() {
             <input type="number"
                    name="items[${i}][selling_price]"
                    class="price w-28 border border-gray-300 rounded px-2 py-1.5 text-sm bg-gray-100 cursor-not-allowed"
-                   step="0.01"
-                   min="0"
-                   readonly
-                   required>
+                   step="0.01" min="0" readonly required>
         </td>
         <td class="py-2 pr-2 text-xs text-purple-600 comm-col">—</td>
         <td class="py-2 pr-2">
@@ -166,12 +186,12 @@ function addRow() {
         <td class="py-2">
             <button type="button" class="del text-red-400 hover:text-red-600 text-lg font-bold">×</button>
         </td>
-
         <input type="hidden" name="items[${i}][commission_rate]" class="hidden-comm" value="0">
         <input type="hidden" name="items[${i}][dispatch_price]"  class="hidden-disp" value="0">
     `;
 
     document.getElementById('items-body').appendChild(tr);
+    refreshSelects();
 
     const sel        = tr.querySelector('.prod-sel');
     const qty        = tr.querySelector('.qty');
@@ -187,14 +207,14 @@ function addRow() {
 
         avail.textContent = o.dataset.avail ? o.dataset.avail + ' ' + o.dataset.unit : '—';
 
-        // ✅ FIXED HERE
-        price.value = o.dataset.disp ? parseFloat(o.dataset.disp).toFixed(2) : 0;
+        // ✅ Auto-fill with MRP (product selling price set by admin)
+        price.value      = o.dataset.mrp ? parseFloat(o.dataset.mrp).toFixed(2) : 0;
 
-        qty.max = o.dataset.avail || 9999;
-
+        qty.max          = o.dataset.avail || 9999;
         hiddenComm.value = o.dataset.comm || 0;
         hiddenDisp.value = o.dataset.disp || 0;
 
+        refreshSelects();
         calc();
     });
 
@@ -202,38 +222,36 @@ function addRow() {
 
     tr.querySelector('.del').addEventListener('click', () => {
         tr.remove();
+        refreshSelects();
         calcTotals();
     });
 
     function calc() {
-    const o  = sel.options[sel.selectedIndex];
-    const q  = parseFloat(qty.value) || 0;
-    const max = parseFloat(o.dataset.avail) || 0;
+        const o   = sel.options[sel.selectedIndex];
+        const q   = parseFloat(qty.value) || 0;
+        const max = parseFloat(o.dataset.avail) || 0;
 
-    // 🚨 STOCK VALIDATION
-    if (q > max) {
-        qty.value = max;
-        alert(`Only ${max} items available in stock`);
-        return;
+        if (q > max) {
+            qty.value = max;
+            alert(`Only ${max} items available in stock`);
+            return;
+        }
+
+        const p  = parseFloat(price.value) || 0;
+        // Commission is calculated on dispatch price (company's charge to seller)
+        const d  = parseFloat(o.dataset.disp) || p;
+        const cr = parseFloat(o.dataset.comm) || 0;
+
+        const commAmt = q * d * (cr / 100);
+
+        sub.textContent  = '₹' + (q * p).toFixed(2);
+        comm.textContent = cr > 0 ? `${cr}% = ₹${commAmt.toFixed(2)}` : '—';
+
+        hiddenComm.value = cr;
+        hiddenDisp.value = d;
+
+        calcTotals();
     }
-
-    const p  = parseFloat(price.value) || 0;
-
-    // ✅ FIX: fallback to price if dispatch_price is 0
-    const d  = parseFloat(o.dataset.disp) || p;
-
-    const cr = parseFloat(o.dataset.comm) || 0;
-
-    const commAmt = q * d * (cr / 100);
-
-    sub.textContent  = '₹' + (q * p).toFixed(2);
-    comm.textContent = cr > 0 ? `${cr}% = ₹${commAmt.toFixed(2)}` : '—';
-
-    hiddenComm.value = cr;
-    hiddenDisp.value = d;
-
-    calcTotals();
-}
 }
 
 function calcTotals() {
@@ -241,10 +259,10 @@ function calcTotals() {
     let commissionTotal = 0;
 
     document.querySelectorAll('.item-row').forEach(row => {
-        const sub      = parseFloat(row.querySelector('.sub').textContent.replace('₹', '')) || 0;
-        const commText = row.querySelector('.comm-col').textContent;
+        const sub       = parseFloat(row.querySelector('.sub').textContent.replace('₹', '')) || 0;
+        const commText  = row.querySelector('.comm-col').textContent;
         const commMatch = commText.match(/₹([\d.]+)/);
-        const comm     = commMatch ? parseFloat(commMatch[1]) : 0;
+        const comm      = commMatch ? parseFloat(commMatch[1]) : 0;
 
         grandTotal      += sub;
         commissionTotal += comm;
@@ -262,7 +280,6 @@ document.getElementById('sale-form').addEventListener('submit', e => {
         alert('Add at least one product.');
     }
 });
-
 
 addRow();
 </script>

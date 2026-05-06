@@ -83,7 +83,10 @@
 
                 {{-- Payment --}}
                 <td>
-                    @if($req->status === 'approved' && $req->payment_status === 'pending')
+                    @if($req->status === 'rejected')
+                        <span class="text-xs text-gray-500 font-semibold">N/A</span>
+
+                    @elseif($req->status === 'approved' && $req->payment_status === 'pending')
                         <form method="POST" action="{{ route('stock-requests.pay', $req->id) }}"
                               class="flex items-center gap-2">
                             @csrf
@@ -97,10 +100,12 @@
                                 Pay
                             </button>
                         </form>
+
                     @elseif($req->payment_status === 'paid')
                         <span class="text-xs text-green-600 font-semibold">
                             ✅ Paid ({{ ucfirst($req->payment_method) }})
                         </span>
+
                     @else
                         <span class="text-xs text-gray-400">—</span>
                     @endif

@@ -10,7 +10,12 @@
         <div class="bg-blue-100 p-4 rounded">
             <p class="text-sm">Total Value</p>
             <h3 class="text-xl font-bold">
-                ₹{{ number_format($requests->sum(fn($r) => ($r->product->price ?? 0) * $r->quantity), 2) }}
+                ₹{{ number_format(
+                    $requests
+                        ->where('status','approved')
+                        ->sum(fn($r) => ($r->product->price ?? 0) * $r->quantity),
+                    2
+                ) }}
             </h3>
         </div>
 
@@ -24,7 +29,13 @@
         <div class="bg-red-100 p-4 rounded">
             <p class="text-sm">Pending</p>
             <h3 class="text-xl font-bold text-red-700">
-                ₹{{ number_format($requests->where('payment_status','pending')->sum(fn($r) => ($r->product->price ?? 0) * $r->quantity), 2) }}
+                ₹{{ number_format(
+                    $requests
+                        ->where('status','approved')
+                        ->where('payment_status','pending')
+                        ->sum(fn($r) => ($r->product->price ?? 0) * $r->quantity),
+                    2
+                ) }}
             </h3>
         </div>
     </div>
@@ -36,7 +47,7 @@
                     <th class="p-3">Seller</th>
                     <th class="p-3">Product</th>
                     <th class="p-3">Qty</th>
-                    <th class="p-3">Total (₹)</th> {{-- ✅ NEW --}}
+                    <th class="p-3">Total (₹)</th>
                     <th class="p-3">Status</th>
                     <th class="p-3">Payment</th>
                     <th class="p-3">Action</th>
@@ -54,12 +65,10 @@
                     <td class="p-3">{{ $req->product->name ?? 'N/A' }}</td>
                     <td class="p-3">{{ $req->quantity }}</td>
 
-                    {{-- ✅ TOTAL --}}
                     <td class="p-3">
                         ₹{{ number_format($total, 2) }}
                     </td>
 
-                    {{-- STATUS --}}
                     <td class="p-3">
                         @if($status == 'pending')
                             <span class="px-2 py-1 bg-yellow-200 rounded">Pending</span>
@@ -70,20 +79,18 @@
                         @endif
                     </td>
 
-                    {{-- PAYMENT --}}
                     <td class="p-3">
-                        @if($req->payment_status == 'paid')
+                        @if($status === 'rejected')
+                            <span class="px-2 py-1 bg-gray-200 text-gray-600 rounded">N/A</span>
+                        @elseif($req->payment_status == 'paid')
                             <span class="px-2 py-1 bg-green-200 rounded">Paid</span>
                         @else
                             <span class="px-2 py-1 bg-red-200 rounded">Pending</span>
                         @endif
                     </td>
 
-                    {{-- ACTION --}}
                     <td class="p-3 flex gap-2">
-
                         @if(strtolower($req->status) === 'pending')
-
                             <form method="POST" action="{{ route('stock-requests.approve',$req->id) }}">
                                 @csrf
                                 <button type="submit" style="background:green;color:white;padding:6px 10px;border-radius:5px;">
@@ -97,11 +104,9 @@
                                     Reject
                                 </button>
                             </form>
-
                         @else
                             <span style="color:gray;">Done</span>
                         @endif
-
                     </td>
                 </tr>
                 @endforeach
@@ -115,6 +120,7 @@
                 @endif
 
             </tbody>
+            {{ $requests->links() }}
         </table>
     </div>
 

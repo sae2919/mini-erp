@@ -2,19 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Commission;
-use App\Models\ErpNotification;
-use App\Models\Seller;
 use App\Models\SellerSale;
-use App\Models\SellerSaleItem;
-use App\Models\SellerStock;
+use App\Models\Seller;
+use App\Models\Product;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class SellerSaleController extends Controller
 {
+    // ─────────────────────────────────────────────────────────────
+    // HELPER — returns the Seller record if logged-in user is a seller
+    // ─────────────────────────────────────────────────────────────
     private function mySellerOrNull(): ?Seller
     {
         return auth()->user()->hasRole('seller')
@@ -22,155 +21,111 @@ class SellerSaleController extends Controller
             : null;
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // INDEX
+    // ─────────────────────────────────────────────────────────────
     public function index(Request $request)
     {
         $mySeller = $this->mySellerOrNull();
-        $sellers  = $mySeller ? collect() : Seller::active()->orderBy('name')->get();
 
-        $sales = SellerSale::with(['seller','items.product'])
-            ->when($mySeller, fn($q)=>$q->where('seller_id',$mySeller->id))
-            ->when(!$mySeller && $request->seller_id, fn($q)=>$q->where('seller_id',$request->seller_id))
-            ->when($request->from, fn($q)=>$q->whereDate('sale_date','>=',$request->from))
-            ->when($request->to, fn($q)=>$q->whereDate('sale_date','<=',$request->to))
-            ->latest()->paginate(20)->withQueryString();
+        $sales = SellerSale::with(['seller', 'items.product'])
+            ->when($mySeller, fn($q) => $q->where('seller_id', $mySeller->id))
+            ->when(!$mySeller && $request->seller_id, fn($q) => $q->where('seller_id', $request->seller_id))
+            ->when($request->from, fn($q) => $q->whereDate('sale_date', '>=', $request->from))
+            ->when($request->to,   fn($q) => $q->whereDate('sale_date', '<=', $request->to))
+            ->latest('sale_date')
+            ->paginate(10)
+            ->withQueryString();
 
-        return view('seller-sales.index', compact('sales','sellers','mySeller'));
+        $sellers = $mySeller ? collect() : Seller::orderBy('name')->get();
+
+        return view('seller-sales.index', compact('sales', 'sellers', 'mySeller'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // CREATE
+    // ─────────────────────────────────────────────────────────────
     public function create(Request $request)
-    {
-        $mySeller = $this->mySellerOrNull();
+{
+    $mySeller = $this->mySellerOrNull();
 
-        if ($mySeller) {
-            $stock = $mySeller->stocks()->with('product.category')->where('quantity','>',0)->get();
-            return view('seller-sales.create', compact('mySeller','stock'));
-        }
-
-        $sellers        = Seller::active()->orderBy('name')->get();
-        $selectedSeller = $request->seller_id ? Seller::find($request->seller_id) : null;
-        $stock          = $selectedSeller
-            ? $selectedSeller->stocks()->with('product.category')->where('quantity','>',0)->get()
-            : collect();
-
-        return view('seller-sales.create', compact('sellers','selectedSeller','stock'));
+    if ($mySeller) {
+        // Seller sees only their own stock
+        $stock = $mySeller->stocks()
+            ->with('product.category')
+            ->where('quantity', '>', 0)
+            ->get();
+        return view('seller-sales.create', compact('mySeller', 'stock'));
     }
 
+    // Admin/SalesExec can pick any seller
+    $sellers        = Seller::active()->orderBy('name')->get();
+    $selectedSeller = $request->seller_id ? Seller::find($request->seller_id) : null;
+    $stock          = $selectedSeller
+        ? $selectedSeller->stocks()->with('product.category')->where('quantity', '>', 0)->get()
+        : collect();
+
+    return view('seller-sales.create', compact('sellers', 'selectedSeller', 'stock'));
+}
+
+    // ─────────────────────────────────────────────────────────────
+    // STORE
+    // ─────────────────────────────────────────────────────────────
     public function store(Request $request)
     {
         $request->validate([
-            'seller_id'             => ['required','exists:sellers,id'],
-            'customer_name'         => ['nullable','string','max:255'],
-            'customer_phone'        => ['nullable','string','max:20'],
-            'sale_date'             => ['required','date'],
-            'items'                 => ['required','array','min:1'],
-            'items.*.product_id'    => ['required','exists:products,id'],
-            'items.*.quantity'      => ['required','integer','min:1'],
-            'items.*.selling_price' => ['required','numeric','min:0'],
+            'seller_id'              => ['required', 'exists:sellers,id'],
+            'sale_date'              => ['required', 'date', 'before_or_equal:today'],
+            'customer_name'          => ['nullable', 'string', 'max:150'],
+            'notes'                  => ['nullable', 'string', 'max:1000'],
+            'items'                  => ['required', 'array', 'min:1'],
+            'items.*.product_id'     => ['required', 'exists:products,id'],
+            'items.*.quantity'       => ['required', 'integer', 'min:1'],
+            'items.*.price_per_unit' => ['required', 'numeric', 'min:0'],
         ]);
 
-        if (auth()->user()->hasRole('seller')) {
-            $me = $this->mySellerOrNull();
-            abort_if($me->id != $request->seller_id, 403);
-        }
+        DB::transaction(function () use ($request) {
+            $totalAmount = 0;
+            $sale = SellerSale::create([
+                'seller_id'     => $request->seller_id,
+                'sale_date'     => $request->sale_date,
+                'customer_name' => $request->customer_name,
+                'notes'         => $request->notes,
+                'user_id'       => auth()->id(),
+                'total_amount'  => 0,
+            ]);
 
-        try {
-            $sale = DB::transaction(function () use ($request) {
-                $seller          = Seller::find($request->seller_id);
-                $totalAmount     = 0;
-                $totalCommission = 0;
-                $totalCompany    = 0;
+            foreach ($request->items as $item) {
+                $lineTotal    = $item['quantity'] * $item['price_per_unit'];
+                $totalAmount += $lineTotal;
 
-                $sale = SellerSale::create([
-                    'seller_id'         => $seller->id,
-                    'reference'         => SellerSale::generateReference($seller->id),
-                    'customer_name'     => $request->customer_name,
-                    'customer_phone'    => $request->customer_phone,
-                    'sale_date'         => $request->sale_date,
-                    'total_amount'      => 0,
-                    'commission_amount' => 0,
-                    'company_amount'    => 0,
+                $sale->items()->create([
+                    'product_id'     => $item['product_id'],
+                    'quantity'       => $item['quantity'],
+                    'price_per_unit' => $item['price_per_unit'],
+                    'total_amount'   => $lineTotal,
                 ]);
-                
 
-                foreach ($request->items as $item) {
-                    $ss = SellerStock::where('seller_id',$seller->id)
-                        ->where('product_id',$item['product_id'])
-                        ->lockForUpdate()->first();
-
-                    if (!$ss || $ss->quantity < $item['quantity']) {
-                        throw ValidationException::withMessages([
-                            'items' => 'Insufficient seller stock. Available: '.($ss?->quantity ?? 0)
-                        ]);
-                    }
-
-                    $product        = $ss->product;
-                    $qty            = (int)$item['quantity'];
-                    $sellingPrice   = (float)$item['selling_price'];
-                    $dispatchPrice  = (float)$product->dispatch_price;
-                    $commissionRate = (float)$product->commission_rate;
-
-                    $commAmt  = round($qty * $dispatchPrice * ($commissionRate / 100), 2);
-                    $subtotal = $qty * $sellingPrice;
-
-                    SellerSaleItem::create([
-                        'seller_sale_id'    => $sale->id,
-                        'product_id'        => $product->id,
-                        'quantity'          => $qty,
-                        'selling_price'     => $sellingPrice,
-                        'dispatch_price'    => $dispatchPrice,
-                        'commission_rate'   => $commissionRate,
-                        'commission_amount' => $commAmt,
-                        'subtotal'          => $subtotal,
-                    ]);
-
-                    $ss->decrement('quantity', $qty);
-
-                    $totalAmount     += $subtotal;
-                    $totalCommission += $commAmt;
-                    $totalCompany    += $qty * $dispatchPrice;
+                $seller = Seller::find($request->seller_id);
+                if ($seller?->commission_rate) {
+                    $commission = $lineTotal * ($seller->commission_rate / 100);
+                    $sale->items()->latest()->first()->update(['commission' => $commission]);
                 }
+            }
 
-                $sale->update([
-                    'total_amount'      => $totalAmount,
-                    'commission_amount' => $totalCommission,
-                    'company_amount'    => $totalCompany,
-                ]);
+            $sale->update(['total_amount' => $totalAmount]);
+            ActivityLogger::log('created', $sale, "Seller sale recorded — ₹{$totalAmount}");
+        });
 
-                Commission::create([
-                    'seller_id'      => $seller->id,
-                    'seller_sale_id' => $sale->id,
-                    'amount'         => $totalCommission,
-                    'status'         => 'pending',
-                ]);
-
-                ActivityLogger::created($sale,
-                    "Seller sale {$sale->reference} by {$seller->name} — ₹{$totalAmount} | Commission: ₹{$totalCommission}"
-                );
-
-                ErpNotification::notify('sale',
-                    "New Sale by {$seller->name}",
-                    "₹{$totalAmount} sale | Commission: ₹{$totalCommission}",
-                    ['icon'=>'💰','color'=>'green']
-                );
-
-                return $sale;
-            });
-
-            return redirect()->route('seller-sales.show',$sale)
-                ->with('success',"Sale {$sale->reference} recorded.");
-
-        } catch (ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
-        }
+        return redirect()->route('seller-sales.index')->with('success', 'Sale recorded successfully.');
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // SHOW
+    // ─────────────────────────────────────────────────────────────
     public function show(SellerSale $sellerSale)
     {
-        if (auth()->user()->hasRole('seller')) {
-            abort_if($sellerSale->seller_id !== $this->mySellerOrNull()?->id, 403);
-        }
-
-        $sellerSale->load(['seller','items.product','commission']);
+        $sellerSale->load(['seller', 'user', 'items.product.category']);
         return view('seller-sales.show', compact('sellerSale'));
     }
 }

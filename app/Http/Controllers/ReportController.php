@@ -1,7 +1,11 @@
 <?php
 
-namespace App\Http\Controllers;
 
+
+
+namespace App\Http\Controllers;
+use App\Exports\GenericExport;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Commission;
 use App\Models\DispatchOrder;
 use App\Models\Product;
@@ -14,6 +18,7 @@ use App\Models\Production;
 use App\Models\ProductionItem;
 use App\Services\ReportService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,13 +28,28 @@ class ReportController extends Controller
     public function __construct(private ReportService $reportService) {}
 
     // ════════════════════════════════════════════════════════════════
-    //  CORE REPORTS  (routed, were missing — caused 500 errors)
+    //  HELPER — paginates a plain Collection (for map()-based reports)
+    //  Used by: sellerPnl, sellerPerformance, stockMovement
+    // ════════════════════════════════════════════════════════════════
+    private function paginateCollection(Collection $items, int $perPage, Request $request): LengthAwarePaginator
+    {
+        $page  = $request->input('page', 1);
+        $slice = $items->slice(($page - 1) * $perPage, $perPage)->values();
+
+        return new LengthAwarePaginator(
+            $slice,
+            $items->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  CORE REPORTS  — delegate to ReportService, no DB pagination
+    //  (these return full arrays from ReportService — kept as-is)
     // ════════════════════════════════════════════════════════════════
 
-    /**
-     * GET /reports/sales
-     * Accessible by: admin, viewer
-     */
     public function sales(Request $request)
     {
         $request->validate([
@@ -37,7 +57,6 @@ class ReportController extends Controller
             'to'   => 'nullable|date|after_or_equal:from',
         ]);
 
-        // Default to current month when no filter is supplied
         $from = $request->from ?? now()->startOfMonth()->toDateString();
         $to   = $request->to   ?? now()->toDateString();
 
@@ -47,10 +66,6 @@ class ReportController extends Controller
         return view('reports.sales', compact('sales', 'summary', 'from', 'to'));
     }
 
-    /**
-     * GET /reports/purchases
-     * Accessible by: admin, inventory_manager, viewer
-     */
     public function purchases(Request $request)
     {
         $request->validate([
@@ -67,11 +82,6 @@ class ReportController extends Controller
         return view('reports.purchases', compact('purchases', 'summary', 'from', 'to'));
     }
 
-    /**
-     * GET /reports/profit
-     * Accessible by: admin, viewer
-     * Uses cost_price SNAPSHOT from sale_items — not the live product cost.
-     */
     public function profit(Request $request)
     {
         $request->validate([
@@ -89,7 +99,7 @@ class ReportController extends Controller
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  SELLER / DISPATCH REPORTS
+    //  COMMISSION  ← paginated via Eloquent paginate()
     // ════════════════════════════════════════════════════════════════
 
     public function commission(Request $request)
@@ -102,7 +112,8 @@ class ReportController extends Controller
             ->withSum(['commissions as pending_commission' => fn($q) => $q->where('status', 'pending')], 'amount')
             ->when($request->seller_id, fn($q) => $q->where('id', $request->seller_id))
             ->orderByDesc('total_commission')
-            ->get();
+            ->paginate(20)                // ← paginate instead of get()
+            ->withQueryString();
 
         $totalAll     = Commission::sum('amount');
         $totalPaid    = Commission::where('status', 'paid')->sum('amount');
@@ -113,6 +124,10 @@ class ReportController extends Controller
         ));
     }
 
+    // ════════════════════════════════════════════════════════════════
+    //  SELLER P&L  ← uses collection pagination (map()-based)
+    // ════════════════════════════════════════════════════════════════
+
     public function sellerPnl(Request $request)
     {
         $sellers = Seller::active()->orderBy('name')->get();
@@ -120,7 +135,7 @@ class ReportController extends Controller
         $from = $request->from ?? now()->startOfMonth()->toDateString();
         $to   = $request->to   ?? now()->toDateString();
 
-        $data = Seller::with(['dispatchOrders', 'sales', 'payments', 'commissions'])
+        $allData = Seller::with(['dispatchOrders', 'sales', 'payments', 'commissions'])
             ->when($request->seller_id, fn($q) => $q->where('id', $request->seller_id))
             ->get()
             ->map(function ($seller) use ($from, $to) {
@@ -152,8 +167,14 @@ class ReportController extends Controller
                 ];
             });
 
+        $data = $this->paginateCollection($allData, 20, $request); // ← paginated
+
         return view('reports.seller-pnl', compact('data', 'sellers', 'from', 'to'));
     }
+
+    // ════════════════════════════════════════════════════════════════
+    //  ACCOUNT STATEMENT  ← no pagination (single seller, full history)
+    // ════════════════════════════════════════════════════════════════
 
     public function accountStatement(Request $request)
     {
@@ -224,6 +245,10 @@ class ReportController extends Controller
         ));
     }
 
+    // ════════════════════════════════════════════════════════════════
+    //  BEST PRODUCTS  ← paginated via Eloquent paginate()
+    // ════════════════════════════════════════════════════════════════
+
     public function bestProducts(Request $request)
     {
         $from = $request->from ?? now()->startOfMonth()->toDateString();
@@ -238,34 +263,41 @@ class ReportController extends Controller
                 COUNT(DISTINCT seller_sale_id) as order_count')
             ->groupBy('product_id')
             ->orderByDesc('total_qty')
-            ->get();
+            ->paginate(20)               // ← paginate instead of get()
+            ->withQueryString();
 
-        $totalRevenue = $products->sum('total_revenue');
+        $totalRevenue = SellerSaleItem::whereHas(
+            'sellerSale', fn($q) => $q->whereBetween('sale_date', [$from, $to])
+        )->sum('subtotal');
 
         return view('reports.best-products', compact('products', 'from', 'to', 'totalRevenue'));
     }
+
+    // ════════════════════════════════════════════════════════════════
+    //  SELLER PERFORMANCE  ← uses collection pagination (map()-based)
+    // ════════════════════════════════════════════════════════════════
 
     public function sellerPerformance(Request $request)
     {
         $from = $request->from ?? now()->startOfMonth()->toDateString();
         $to   = $request->to   ?? now()->toDateString();
 
-        $sellers = Seller::with([
+        $allSellers = Seller::with([
             'sales'  => fn($q) => $q->whereBetween('sale_date', [$from, $to]),
             'stocks',
         ])
         ->get()
         ->map(function ($seller) use ($from, $to) {
-            $sales      = $seller->sales()->whereBetween('sale_date', [$from, $to]);
+            $salesQ     = $seller->sales()->whereBetween('sale_date', [$from, $to]);
             $dispatched = $seller->dispatchOrders()
                 ->whereBetween('dispatch_date', [$from, $to])
                 ->sum('total_amount');
 
             return [
                 'seller'       => $seller,
-                'sales_count'  => $sales->count(),
-                'sales_amount' => $sales->sum('total_amount'),
-                'commission'   => $sales->sum('commission_amount'),
+                'sales_count'  => $salesQ->count(),
+                'sales_amount' => $salesQ->sum('total_amount'),
+                'commission'   => $salesQ->sum('commission_amount'),
                 'dispatched'   => $dispatched,
                 'stock_value'  => $seller->stocks()->sum('quantity'),
                 'outstanding'  => max(0, $seller->balance_due),
@@ -274,15 +306,21 @@ class ReportController extends Controller
         ->sortByDesc('sales_amount')
         ->values();
 
+        $sellers = $this->paginateCollection($allSellers, 10, $request); // ← paginated
+
         return view('reports.seller-performance', compact('sellers', 'from', 'to'));
     }
+
+    // ════════════════════════════════════════════════════════════════
+    //  STOCK MOVEMENT  ← uses collection pagination (map()-based)
+    // ════════════════════════════════════════════════════════════════
 
     public function stockMovement(Request $request)
     {
         $from = $request->from ?? now()->startOfMonth()->toDateString();
         $to   = $request->to   ?? now()->toDateString();
 
-        $products = Product::active()->with('category')
+        $allProducts = Product::active()->with('category')
             ->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id))
             ->get()
             ->map(function ($product) use ($from, $to) {
@@ -326,8 +364,140 @@ class ReportController extends Controller
             )
             ->values();
 
+        $products   = $this->paginateCollection($allProducts, 10, $request); // ← paginated
         $categories = \App\Models\Category::orderBy('name')->get();
 
         return view('reports.stock-movement', compact('products', 'from', 'to', 'categories'));
     }
+    public function exportPerformance(Request $request)
+{
+    $from = $request->from ?? now()->startOfMonth()->toDateString();
+    $to   = $request->to   ?? now()->toDateString();
+
+    $rows[] = [
+        'Seller',
+        'Region',
+        'Sales Count',
+        'Sales Amount',
+        'Commission',
+        'Dispatched',
+        'Stock',
+        'Outstanding'
+    ];
+
+    $allSellers = Seller::with(['sales','stocks'])->get();
+
+    foreach ($allSellers as $seller) {
+
+        $salesQ = $seller->sales()->whereBetween('sale_date', [$from, $to]);
+
+        $rows[] = [
+            $seller->name,
+            $seller->region,
+            $salesQ->count(),
+            $salesQ->sum('total_amount'),
+            $salesQ->sum('commission_amount'),
+            $seller->dispatchOrders()
+                ->whereBetween('dispatch_date', [$from, $to])
+                ->sum('total_amount'),
+            $seller->stocks()->sum('quantity'),
+            max(0, $seller->balance_due),
+        ];
+    }
+
+    return Excel::download(new GenericExport($rows), 'seller_performance.xlsx');
+}
+    public function exportSellerPL(Request $request)
+{
+    $from = $request->from ?? now()->startOfMonth()->toDateString();
+    $to   = $request->to   ?? now()->toDateString();
+
+    $rows[] = [
+        'Seller',
+        'Dispatched',
+        'Collected',
+        'Outstanding',
+        'Sales',
+        'Commission',
+        'Net'
+    ];
+
+    $sellers = Seller::with(['dispatchOrders','payments','sales','commissions'])->get();
+
+    foreach ($sellers as $seller) {
+
+        $dispatched = $seller->dispatchOrders()
+            ->whereBetween('dispatch_date', [$from, $to])
+            ->where('status','!=','cancelled')
+            ->sum('total_amount');
+
+        $collected = $seller->payments()
+            ->whereBetween('paid_at', [$from, $to])
+            ->sum('amount');
+
+        $sales = $seller->sales()
+            ->whereBetween('sale_date', [$from, $to])
+            ->sum('total_amount');
+
+        $commission = $seller->commissions()
+            ->whereHas('sellerSale', fn($q)=>$q->whereBetween('sale_date', [$from, $to]))
+            ->sum('amount');
+
+        $rows[] = [
+            $seller->name,
+            $dispatched,
+            $collected,
+            max(0,$seller->balance_due),
+            $sales,
+            $commission,
+            $dispatched - $collected,
+        ];
+    }
+
+    return Excel::download(new GenericExport($rows), 'seller_pnl.xlsx');
+}
+public function exportProducts(\Illuminate\Http\Request $request)
+{
+    $from = $request->from ?? now()->startOfMonth()->toDateString();
+    $to   = $request->to   ?? now()->toDateString();
+
+    $rows[] = [
+        '#',
+        'Product',
+        'Category',
+        'Units Sold',
+        'Revenue',
+        'Commission',
+        'Orders'
+    ];
+
+    $products = \App\Models\SellerSaleItem::with('product.category')
+        ->whereHas('sellerSale', function ($q) use ($from, $to) {
+            $q->whereBetween('sale_date', [$from, $to]);
+        })
+        ->get()
+        ->groupBy('product_id');
+
+    $i = 1;
+
+    foreach ($products as $group) {
+
+        $product = $group->first()->product;
+
+        $rows[] = [
+            $i++,
+            $product->name ?? '',
+            $product->category->name ?? '',
+            $group->sum('quantity'),
+            $group->sum('subtotal'),
+            $group->sum('commission_amount'),
+            $group->count(),
+        ];
+    }
+
+    return \Maatwebsite\Excel\Facades\Excel::download(
+        new \App\Exports\GenericExport($rows),
+        'best_products.xlsx'
+    );
+}
 }

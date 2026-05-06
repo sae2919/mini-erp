@@ -123,6 +123,7 @@
                 @endforelse
             </tbody>
         </table>
+        
         <div class="px-4 py-3 border-t border-gray-100">{{ $commissions->links() }}</div>
     </div>
 </div>

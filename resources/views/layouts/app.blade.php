@@ -51,9 +51,7 @@
                 <div class="pt-3 pb-1 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Products</div>
                 @role('admin'){!! navLink('categories.index', '🏷️', 'Categories') !!}@endrole
                 {!! navLink('products.index', '📦', 'Products') !!}
-                @role('admin')
-                {!! navLink('stock-requests.index', '📋', 'Stock Requests') !!} {{-- ✅ ADDED --}}
-                @endrole
+                
 
                 @hasanyrole('admin|manager|inventory_manager')
                 <div class="pt-3 pb-1 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Production</div>
@@ -81,7 +79,7 @@
                 @hasanyrole('admin|viewer')
                 <div class="pt-3 pb-1 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Reports</div>
                 {!! navLink('reports.seller-pnl',         '📊', 'Seller P&L') !!}
-                {!! navLink('reports.account-statement',  '🧾', 'Account Statement') !!}
+                
                 {!! navLink('reports.best-products',      '📈', 'Best Products') !!}
                 {!! navLink('reports.seller-performance', '🏪', 'Seller Performance') !!}
                 

@@ -10,14 +10,33 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    public function index()
+    // ─────────────────────────────────────────────────────────────
+    // INDEX  ← added withQueryString() + search + role filter
+    // ─────────────────────────────────────────────────────────────
+    public function index(Request $request)
     {
         $users = User::with('roles')
+            ->when($request->search, fn($q) =>                      // ← NEW
+                $q->where(fn($q2) =>
+                    $q2->where('name',  'like', '%' . $request->search . '%')
+                       ->orWhere('email', 'like', '%' . $request->search . '%')
+                )
+            )
+            ->when($request->role, fn($q) =>                        // ← NEW
+                $q->whereHas('roles', fn($r) => $r->where('name', $request->role))
+            )
             ->orderBy('name')
-            ->paginate(20);
+            ->paginate(10)
+            ->withQueryString();                                      // ← THIS was missing
 
-        return view('users.index', compact('users'));
+        $roles = Role::orderBy('name')->get();                       // ← NEW (needed for filter dropdown)
+
+        return view('users.index', compact('users', 'roles'));
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // Everything below is UNCHANGED from your version
+    // ─────────────────────────────────────────────────────────────
 
     public function create()
     {
@@ -70,7 +89,6 @@ class UserController extends Controller
             $user->update(['password' => Hash::make($validated['password'])]);
         }
 
-        // Sync role — remove old, assign new
         $user->syncRoles([$validated['role']]);
 
         return redirect()->route('users.index')

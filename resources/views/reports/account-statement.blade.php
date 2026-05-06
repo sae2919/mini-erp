@@ -4,8 +4,13 @@
 
 @section('header-actions')
     @if(isset($seller))
+    <a href="{{ url('/export/account-statement?seller_id='.( $seller->id ?? '' ).'&from='.$from.'&to='.$to) }}"
+       class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition">
+        Export Excel
+    </a>
+
     <a href="javascript:window.print()"
-       class="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition">
+       class="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition ml-2">
         🖨️ Print
     </a>
     @endif

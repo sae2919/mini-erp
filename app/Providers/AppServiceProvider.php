@@ -37,5 +37,6 @@ class AppServiceProvider extends ServiceProvider
     StockRequest::observe(ActivityObserver::class);
     DispatchOrder::observe(ActivityObserver::class);
     Payment::observe(ActivityObserver::class);
+    \Illuminate\Pagination\Paginator::defaultView('pagination::tailwind');
 }
 }

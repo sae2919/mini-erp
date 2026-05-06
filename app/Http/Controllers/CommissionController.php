@@ -17,7 +17,7 @@ class CommissionController extends Controller
             ->when($request->from,      fn($q) => $q->whereHas('sellerSale', fn($q2) => $q2->whereDate('sale_date', '>=', $request->from)))
             ->when($request->to,        fn($q) => $q->whereHas('sellerSale', fn($q2) => $q2->whereDate('sale_date', '<=', $request->to)))
             ->latest()
-            ->paginate(20)
+            ->paginate(10)
             ->withQueryString();
 
         $sellers        = Seller::active()->orderBy('name')->get();

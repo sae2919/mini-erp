@@ -337,5 +337,25 @@ Route::resource('stock-requests', StockRequestController::class)->except(['destr
         Route::resource('users',        UserController::class)->except(['show']);
         Route::get('activity-logs',     [ActivityLogController::class, 'index'])->name('activity-logs.index');
     });
+    // ── Exports ───────────────────────────────────────────────────
+Route::prefix('export')->name('export.')->group(function () {
 
+    Route::get('sales',     [ExportController::class, 'sales'])->name('sales')
+        ->middleware('role:admin|viewer');
+
+    Route::get('purchases', [ExportController::class, 'purchases'])->name('purchases')
+        ->middleware('role:admin|inventory_manager|viewer');
+
+    Route::get('profit',    [ExportController::class, 'profit'])->name('profit')
+        ->middleware('role:admin|viewer');
+
+    // 🔥 YOUR REPORT EXPORTS (ADDED PROPERLY HERE)
+    Route::get('seller-pl', [ReportController::class, 'exportSellerPL'])->name('seller-pl');
+    Route::get('account-statement', [ReportController::class, 'exportAccount'])->name('account-statement');
+    Route::get('best-products', [ReportController::class, 'exportProducts'])->name('best-products');
+    Route::get('seller-performance', [ReportController::class, 'exportPerformance'])->name('seller-performance');
+
+});
+Route::get('/export/stock-report', [ProductionController::class, 'exportStockReport'])
+    ->name('export.stock-report');
 }); // end auth middleware group
