@@ -30,9 +30,24 @@
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   input[type="number"] { -moz-appearance: textfield; }
-  .merge-layout { display: grid; grid-template-columns: 440px 1fr; gap: 20px; align-items: start; font-family: 'DM Sans', sans-serif; }
+  .merge-layout {
+  display: grid;
+  grid-template-columns: 440px 1fr;
+  gap: 20px;
+  align-items: start;
+  font-family: 'DM Sans', sans-serif;
+
+  overflow: visible;
+}
   @media (max-width: 1100px) { .merge-layout { grid-template-columns: 1fr; } }
-  .m-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+  .m-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+
+  overflow: visible;
+}
   .m-card-header { padding: 16px 20px; border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; gap: 10px; background: var(--surface2); }
   .m-card-header-icon { width: 34px; height: 34px; background: var(--accent-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
   .m-card-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
@@ -78,7 +93,15 @@
   .r-filter-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
   .r-filter-group input, .r-filter-group select { padding: 7px 11px; min-width: 126px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text-primary); background: var(--surface); outline: none; }
   .r-btn-generate { padding: 8px 18px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; align-self: flex-end; }
-  .r-table-wrap { overflow-x: auto; }
+  .r-table-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+}
+
+body {
+  overflow-x: hidden;
+}
   .r-table { width: 100%; border-collapse: collapse; font-family: 'DM Sans', sans-serif; }
   .r-table thead th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; background: var(--surface2); border-bottom: 1.5px solid var(--border); }
   .r-table thead th.num { text-align: right; }
@@ -273,20 +296,23 @@
     <div
         id="exportMenu"
         style="
-            display:none;
-            position:absolute;
-            top:55px;
-            left:0;
-            width:320px;
-            background:white;
-            border:1px solid #e5e7eb;
-            border-radius:12px;
-            box-shadow:0 10px 25px rgba(0,0,0,0.15);
-            z-index:9999;
-            max-height:550px;
-            overflow-y:auto;
-            padding:18px;
-        "
+    display:none;
+    position:absolute;
+    top:55px;
+    left:0;
+    width:340px;
+    background:white;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    box-shadow:0 10px 25px rgba(0,0,0,0.15);
+    z-index:99999;
+
+    max-height:70vh;
+    overflow-y:auto;
+    overflow-x:hidden;
+
+    padding:18px;
+"
     >
 
         <form method="GET" action="{{ url('/export/stock-report-excel') }}">
@@ -296,34 +322,51 @@
             <input type="hidden" name="to" id="exportTo">
 
             {{-- PRODUCTS --}}
-            <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">
-                Select Products
-            </h3>
+            {{-- PRODUCTS --}}
+<h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">
+    Select Products
+</h3>
 
-            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
+<div
+    style="
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        margin-bottom:24px;
+        max-height:250px;
+        overflow-y:auto;
+        padding-right:6px;
+    "
+>
 
-                <label style="display:flex;justify-content:space-between;align-items:center;">
-                    <span>All Products</span>
+    <label style="display:flex;justify-content:space-between;align-items:center;">
+        <span>All Products</span>
 
-                    <input type="checkbox"
-                           id="allProductsToggle"
-                           onchange="toggleAllProducts(this)">
-                </label>
+        <input
+            type="checkbox"
+            id="allProductsToggle"
+            onchange="toggleAllProducts(this)"
+        >
+    </label>
 
-                @foreach($report as $row)
-                    <label style="display:flex;justify-content:space-between;align-items:center;">
-                        <span>{{ $row->product_name }}</span>
+    @foreach($allProductsForExport as $row)
 
-                        <input
-                            type="checkbox"
-                            name="product_ids[]"
-                            value="{{ $row->id }}"
-                            class="product-checkbox"
-                        >
-                    </label>
-                @endforeach
+        <label style="display:flex;justify-content:space-between;align-items:center;">
 
-            </div>
+            <span>{{ $row->name }}</span>
+
+            <input
+                type="checkbox"
+                name="product_ids[]"
+                value="{{ $row->id }}"
+                class="product-checkbox"
+            >
+
+        </label>
+
+    @endforeach
+
+</div>
 
             {{-- COLUMNS --}}
             <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">
@@ -457,9 +500,241 @@
   </tr>
 </tfoot>
       </table>
+    <div
+    style="
+        padding:18px 20px;
+        border-top:1px solid #edf0f4;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        flex-wrap:wrap;
+        gap:16px;
+    "
+>
+
+    {{-- RESULTS --}}
+    <div
+        style="
+            font-size:14px;
+            color:#6b7280;
+            font-family:'DM Sans',sans-serif;
+        "
+    >
+        Showing
+        <strong>{{ $report->firstItem() }}</strong>
+        to
+        <strong>{{ $report->lastItem() }}</strong>
+        of
+        <strong>{{ $report->total() }}</strong>
+        results
     </div>
-    <div style="padding:15px;">
-    {{ $report->links() }}
+
+
+    {{-- PAGINATION --}}
+    @if ($report->hasPages())
+
+    <div
+        style="
+            display:flex;
+            align-items:center;
+            gap:14px;
+            flex-wrap:wrap;
+        "
+    >
+
+        {{-- PREVIOUS --}}
+        @if($report->onFirstPage())
+
+            <span
+                style="
+                    width:44px;
+                    height:44px;
+                    border-radius:10px;
+                    background:#e5e7eb;
+                    color:#9ca3af;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:34px;
+                    font-weight:900;
+                    cursor:not-allowed;
+                "
+            >
+                ‹
+            </span>
+
+        @else
+
+            <a
+                href="{{ $report->previousPageUrl() }}"
+                style="
+                    width:44px;
+                    height:44px;
+                    border-radius:10px;
+                    border:1px solid #d1d5db;
+                    background:white;
+                    color:#374151;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:34px;
+                    font-weight:900;
+                    text-decoration:none;
+                    transition:0.2s;
+                "
+            >
+                ‹
+            </a>
+
+        @endif
+
+
+        {{-- PAGE NUMBER --}}
+        <div
+            style="
+                height:44px;
+                padding:0 18px;
+                border-radius:10px;
+                background:#334155;
+                color:white;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-size:16px;
+                font-weight:700;
+                font-family:'DM Sans',sans-serif;
+            "
+        >
+            {{ $report->currentPage() }}
+        </div>
+
+
+        {{-- NEXT --}}
+        @if($report->hasMorePages())
+
+            <a
+                href="{{ $report->nextPageUrl() }}"
+                style="
+                    width:44px;
+                    height:44px;
+                    border-radius:10px;
+                    border:1px solid #d1d5db;
+                    background:white;
+                    color:#374151;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:34px;
+                    font-weight:900;
+                    text-decoration:none;
+                    transition:0.2s;
+                "
+            >
+                ›
+
+            </a>
+
+        @else
+
+            <span
+                style="
+                    width:44px;
+                    height:44px;
+                    border-radius:10px;
+                    background:#e5e7eb;
+                    color:#9ca3af;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:34px;
+                    font-weight:900;
+                    cursor:not-allowed;
+                "
+            >
+                ›
+
+            </span>
+
+        @endif
+
+
+        {{-- JUMP PAGE --}}
+        <form
+            method="GET"
+            action="{{ url()->current() }}"
+            style="
+                display:flex;
+                align-items:center;
+                gap:10px;
+            "
+        >
+
+            @foreach(request()->except('page') as $key => $value)
+
+                @if(is_array($value))
+
+                    @foreach($value as $v)
+
+                        <input
+                            type="hidden"
+                            name="{{ $key }}[]"
+                            value="{{ $v }}"
+                        >
+
+                    @endforeach
+
+                @else
+
+                    <input
+                        type="hidden"
+                        name="{{ $key }}"
+                        value="{{ $value }}"
+                    >
+
+                @endif
+
+            @endforeach
+
+            <input
+                type="number"
+                name="page"
+                min="1"
+                max="{{ $report->lastPage() }}"
+                placeholder="Page"
+                style="
+                    width:90px;
+                    height:44px;
+                    border:1px solid #d1d5db;
+                    border-radius:10px;
+                    padding:0 14px;
+                    font-size:14px;
+                    outline:none;
+                "
+            >
+
+            <button
+                type="submit"
+                style="
+                    height:44px;
+                    padding:0 18px;
+                    border:none;
+                    border-radius:10px;
+                    background:#0f172a;
+                    color:white;
+                    font-size:14px;
+                    font-weight:700;
+                    cursor:pointer;
+                "
+            >
+                Go
+            </button>
+
+        </form>
+
+    </div>
+
+    @endif
+
 </div>
   </div>
 
@@ -623,20 +898,39 @@ function toggleAllProducts(source) {
 
     document.querySelectorAll('.product-checkbox')
         .forEach(cb => {
+
             cb.checked = source.checked;
+
         });
 }
 
-window.addEventListener('click', function(e) {
+// ✅ CLOSE EXPORT MENU WHEN CLICKING OUTSIDE
+document.addEventListener('click', function(e) {
 
     const menu = document.getElementById('exportMenu');
 
+    const button = document.querySelector(
+        'button[onclick="toggleExportMenu()"]'
+    );
+
+    // ✅ SAFETY CHECK
+    if (!menu || !button) return;
+
+    // ✅ KEEP MENU OPEN WHEN CLICKING INSIDE
     if (
-        !e.target.closest('#exportMenu') &&
-        !e.target.closest('button[onclick="toggleExportMenu()"]')
+        !menu.contains(e.target) &&
+        !button.contains(e.target)
     ) {
         menu.style.display = 'none';
     }
 });
+
+// ✅ PREVENT MENU FROM CLOSING WHEN SCROLLING INSIDE
+document.getElementById('exportMenu')
+    ?.addEventListener('click', function(e) {
+
+        e.stopPropagation();
+
+    });
 </script>
 @endpush

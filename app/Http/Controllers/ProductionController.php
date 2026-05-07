@@ -99,8 +99,19 @@ $report = new \Illuminate\Pagination\LengthAwarePaginator(
         'query' => request()->query()
     ]
 );
+$allProductsForExport = DB::table('products')
+    ->select('id', 'name')
+    ->where('is_active', 1)
+    ->orderBy('name')
+    ->get();
 
-    return view('productions.create', compact('products', 'productsJs', 'report', 'totals'));
+    return view('productions.create', compact(
+    'products',
+    'productsJs',
+    'report',
+    'totals',
+    'allProductsForExport'
+));
 }
 
     // ─────────────────────────────────────────────────────────────
