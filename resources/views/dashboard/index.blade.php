@@ -204,11 +204,11 @@
 
             <a href="{{ route('products.index') }}"
                class="px-4 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition">
-                📦 Products
+                 Products
             </a>
             <a href="{{ route('seller-sales.index') }}"
                class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition">
-                💰 Seller Sales
+                 Seller Sales
             </a>
         </div>
     </div>

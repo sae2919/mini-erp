@@ -11,6 +11,7 @@ use App\Services\ActivityLogger;
 use App\Services\ReportService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\DB;
 
 
 class ExportController extends Controller
@@ -152,13 +153,125 @@ class ExportController extends Controller
     }
 
     public function stockExcel(Request $request)
-    {
-        return Excel::download(new StockReportExport($request), 'stock-report.xlsx');
+{
+    $from = $request->from;
+    $to   = $request->to;
+
+    $productIds = $request->product_ids ?? [];
+
+    $columns = $request->columns ?? [];
+
+    $query = DB::table('products')
+
+        ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+
+        ->select(
+
+            'products.id as product_id',
+
+            'products.name as product_name',
+
+            'categories.name as category_name',
+
+            'products.stock_quantity as warehouse',
+
+            DB::raw('
+                (
+                    SELECT COALESCE(SUM(pi.quantity),0)
+                    FROM production_items pi
+                    WHERE pi.product_id = products.id
+                ) as produced
+            '),
+
+            DB::raw('
+                (
+                    SELECT COALESCE(SUM(di.quantity),0)
+                    FROM dispatch_items di
+                    WHERE di.product_id = products.id
+                ) as dispatched
+            '),
+
+            DB::raw('
+                (
+                    SELECT COALESCE(SUM(si.quantity),0)
+                    FROM sale_items si
+                    WHERE si.product_id = products.id
+                ) as sold
+            '),
+
+            DB::raw('
+                GREATEST(
+                    0,
+                    (
+                        SELECT COALESCE(SUM(di.quantity),0)
+                        FROM dispatch_items di
+                        WHERE di.product_id = products.id
+                    )
+                    -
+                    (
+                        SELECT COALESCE(SUM(ss.quantity),0)
+                        FROM seller_sale_items ss
+                        WHERE ss.product_id = products.id
+                    )
+                ) as with_sellers
+            '),
+
+            DB::raw('
+                (
+                    products.stock_quantity
+                    +
+                    GREATEST(
+                        0,
+                        (
+                            SELECT COALESCE(SUM(di.quantity),0)
+                            FROM dispatch_items di
+                            WHERE di.product_id = products.id
+                        )
+                        -
+                        (
+                            SELECT COALESCE(SUM(ss.quantity),0)
+                            FROM seller_sale_items ss
+                            WHERE ss.product_id = products.id
+                        )
+                    )
+                ) as total_stock
+            ')
+        );
+
+    // FILTER PRODUCTS
+    if (!empty($productIds)) {
+        $query->whereIn('products.id', $productIds);
     }
+
+    // DATE FILTER
+    if ($from && $to) {
+        $query->whereBetween(
+            'products.created_at',
+            [
+                $from . ' 00:00:00',
+                $to . ' 23:59:59'
+            ]
+        );
+    }
+
+    $data = $query
+        ->orderBy('products.name')
+        ->get();
+
+    return Excel::download(
+
+        new StockReportExport($data, $columns),
+
+        'stock-report.xlsx'
+    );
+}
 
     public function bestProductsExcel(Request $request)
     {
-        return Excel::download(new BestProductsExport($request), 'best-products.xlsx');
+       return Excel::download(
+    new BestProductsExport($request),
+    'best-products.xlsx'
+);
     }
 
     public function sellerPnlExcel(Request $request)

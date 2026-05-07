@@ -245,10 +245,156 @@
 <button class="r-btn-generate" onclick="filterReport()">Generate</button>
 </div>
 
-<a href="{{ url('/export/stock-report-excel') . '?' . http_build_query(request()->all()) }}"
-   style="background:#16a34a;color:white;padding:8px 14px;border-radius:6px;margin-left:10px;">
-   Export Excel
-</a>
+<div style="position:relative;margin-left:10px;">
+
+    {{-- EXPORT BUTTON --}}
+    <button
+        type="button"
+        onclick="toggleExportMenu()"
+        style="
+            background:#16a34a;
+            color:white;
+            padding:10px 18px;
+            border:none;
+            border-radius:10px;
+            font-weight:600;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            gap:8px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.15);
+        "
+    >
+        Export Excel
+        <span>▼</span>
+    </button>
+
+    {{-- DROPDOWN --}}
+    <div
+        id="exportMenu"
+        style="
+            display:none;
+            position:absolute;
+            top:55px;
+            left:0;
+            width:320px;
+            background:white;
+            border:1px solid #e5e7eb;
+            border-radius:12px;
+            box-shadow:0 10px 25px rgba(0,0,0,0.15);
+            z-index:9999;
+            max-height:550px;
+            overflow-y:auto;
+            padding:18px;
+        "
+    >
+
+        <form method="GET" action="{{ url('/export/stock-report-excel') }}">
+
+            {{-- DATE FILTERS --}}
+            <input type="hidden" name="from" id="exportFrom">
+            <input type="hidden" name="to" id="exportTo">
+
+            {{-- PRODUCTS --}}
+            <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">
+                Select Products
+            </h3>
+
+            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
+
+                <label style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>All Products</span>
+
+                    <input type="checkbox"
+                           id="allProductsToggle"
+                           onchange="toggleAllProducts(this)">
+                </label>
+
+                @foreach($report as $row)
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>{{ $row->product_name }}</span>
+
+                        <input
+                            type="checkbox"
+                            name="product_ids[]"
+                            value="{{ $row->id }}"
+                            class="product-checkbox"
+                        >
+                    </label>
+                @endforeach
+
+            </div>
+
+            {{-- COLUMNS --}}
+            <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">
+                Select Columns
+            </h3>
+
+            <div style="display:flex;flex-direction:column;gap:12px;">
+
+                <label style="display:flex;justify-content:space-between;">
+                    <span>Product</span>
+                    <input type="checkbox" name="columns[]" value="product" checked>
+                </label>
+
+                <label style="display:flex;justify-content:space-between;">
+                    <span>Category</span>
+                    <input type="checkbox" name="columns[]" value="category" checked>
+                </label>
+
+                <label style="display:flex;justify-content:space-between;">
+                    <span>Produced</span>
+                    <input type="checkbox" name="columns[]" value="produced" checked>
+                </label>
+
+                <label style="display:flex;justify-content:space-between;">
+                    <span>Dispatched</span>
+                    <input type="checkbox" name="columns[]" value="dispatched" checked>
+                </label>
+
+                <label style="display:flex;justify-content:space-between;">
+                    <span>Sold</span>
+                    <input type="checkbox" name="columns[]" value="sold" checked>
+                </label>
+
+                <label style="display:flex;justify-content:space-between;">
+                    <span>Warehouse</span>
+                    <input type="checkbox" name="columns[]" value="warehouse" checked>
+                </label>
+
+                <label style="display:flex;justify-content:space-between;">
+                    <span>With Sellers</span>
+                    <input type="checkbox" name="columns[]" value="with_sellers" checked>
+                </label>
+
+                <label style="display:flex;justify-content:space-between;">
+                    <span>Total Stock</span>
+                    <input type="checkbox" name="columns[]" value="total_stock" checked>
+                </label>
+
+            </div>
+
+            {{-- BUTTON --}}
+            <button
+                type="submit"
+                style="
+                    margin-top:22px;
+                    width:100%;
+                    background:#2563eb;
+                    color:white;
+                    border:none;
+                    padding:12px;
+                    border-radius:10px;
+                    font-weight:700;
+                    cursor:pointer;
+                "
+            >
+                Generate Export
+            </button>
+
+        </form>
+    </div>
+</div>
     <div class="r-table-wrap">
       <table class="r-table">
         <thead>
@@ -458,5 +604,39 @@ document.getElementById('add-row').addEventListener('click', addRow);
         updateDropdowns(); // ✅ NEW
     }
 })();
+function toggleExportMenu() {
+    const menu = document.getElementById('exportMenu');
+
+    menu.style.display =
+        menu.style.display === 'block'
+            ? 'none'
+            : 'block';
+
+    document.getElementById('exportFrom').value =
+        document.getElementById('fromDate').value;
+
+    document.getElementById('exportTo').value =
+        document.getElementById('toDate').value;
+}
+
+function toggleAllProducts(source) {
+
+    document.querySelectorAll('.product-checkbox')
+        .forEach(cb => {
+            cb.checked = source.checked;
+        });
+}
+
+window.addEventListener('click', function(e) {
+
+    const menu = document.getElementById('exportMenu');
+
+    if (
+        !e.target.closest('#exportMenu') &&
+        !e.target.closest('button[onclick="toggleExportMenu()"]')
+    ) {
+        menu.style.display = 'none';
+    }
+});
 </script>
 @endpush

@@ -112,22 +112,48 @@ class ReportService
 
     // ─── Product-wise Sales ───────────────────────────────────────────────────
 
-    public function getTopSellingProducts(int $limit = 10): Collection
-    {
-        return DB::table('sale_items')
-            ->join('products', 'products.id', '=', 'sale_items.product_id')
-            ->join('sales',    'sales.id',    '=', 'sale_items.sale_id')
-            ->whereNull('sales.deleted_at')
-            ->select([
-                'products.name',
-                DB::raw('SUM(sale_items.quantity) as total_qty'),
-                DB::raw('SUM(sale_items.subtotal) as total_revenue'),
-            ])
-            ->groupBy('products.id', 'products.name')
-            ->orderByDesc('total_qty')
-            ->limit($limit)
-            ->get();
-    }
+    public function getTopSellingProducts()
+{
+    return DB::table('sale_items')
+
+        ->join('products', 'products.id', '=', 'sale_items.product_id')
+
+        ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+
+        ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+
+        ->whereNull('sales.deleted_at')
+
+        ->select(
+
+            'products.id as product_id',
+
+            'products.name',
+
+            'categories.name as category_name',
+
+            DB::raw('SUM(sale_items.quantity) as total_qty'),
+
+            DB::raw('SUM(sale_items.subtotal) as total_revenue'),
+
+            DB::raw('SUM(sale_items.commission_amount) as total_commission'),
+
+            DB::raw('COUNT(DISTINCT sales.id) as order_count')
+
+        )
+
+        ->groupBy(
+            'products.id',
+            'products.name',
+            'categories.name'
+        )
+
+        ->orderByDesc('total_qty')
+
+        ->limit(10)
+
+        ->get();
+}
     public function getStockMovementReport($from = null, $to = null, $categoryId = null)
 {
     $query = DB::table('products')

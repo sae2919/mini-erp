@@ -1,12 +1,316 @@
 @extends('layouts.app')
 @section('title','Seller Performance')
 @section('heading','Seller Performance Comparison')
-
 @section('header-actions')
-    <a href="{{ url('/export/seller-performance-excel') . '?' . http_build_query(request()->all()) }}"
-   class="btn btn-success">
-   Export Excel
-</a>
+
+<form method="GET" action="{{ route('export.seller-performance-excel') }}">
+
+    <input type="hidden" name="from" value="{{ request('from') }}">
+    <input type="hidden" name="to" value="{{ request('to') }}">
+
+    <div style="position:relative;display:inline-block;">
+
+        <button type="button"
+            onclick="toggleExportOptions()"
+            style="
+                background:#16a34a;
+                color:white;
+                padding:10px 18px;
+                border:none;
+                border-radius:10px;
+                cursor:pointer;
+                font-weight:600;
+            ">
+            Export Excel ▼
+        </button>
+
+        <div id="exportOptions"
+            style="
+                display:none;
+                position:absolute;
+                right:0;
+                top:55px;
+                background:white;
+                border:1px solid #e5e7eb;
+                border-radius:14px;
+                padding:18px;
+                width:340px;
+                box-shadow:0 10px 30px rgba(0,0,0,0.12);
+                z-index:999;
+            ">
+
+            <!-- SELLERS -->
+            <div style="
+                margin-bottom:14px;
+                font-size:15px;
+                font-weight:700;
+                color:#111827;
+            ">
+                Select Sellers
+            </div>
+
+            <!-- ALL SELLERS -->
+            <div class="toggle-row">
+
+                <span>All Sellers</span>
+
+                <label class="switch">
+
+                    <input
+                        type="checkbox"
+                        id="allSellerToggle"
+                        checked
+                    >
+
+                    <span class="slider"></span>
+
+                </label>
+
+            </div>
+
+            <!-- SELLER LIST -->
+            @foreach($sellers as $row)
+
+            <div class="toggle-row">
+
+                <span>{{ $row['seller']->name }}</span>
+
+                <label class="switch">
+
+                    <input
+                        type="checkbox"
+                        class="seller-checkbox"
+                        name="seller_ids[]"
+                        value="{{ $row['seller']->id }}"
+                        checked
+                    >
+
+                    <span class="slider"></span>
+
+                </label>
+
+            </div>
+
+            @endforeach
+
+            <!-- COLUMNS -->
+            <div style="
+                margin-top:20px;
+                margin-bottom:14px;
+                font-size:15px;
+                font-weight:700;
+                color:#111827;
+            ">
+                Select Columns
+            </div>
+
+            <!-- COLUMN TOGGLES -->
+
+            <div class="toggle-row">
+                <span>Seller</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="seller" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Region</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="region" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Sales</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="sales" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Revenue</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="revenue" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Commission</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="commission" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Dispatched</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="dispatched" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Stock</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="stock" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Outstanding</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="outstanding" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <!-- BUTTON -->
+
+            <button type="submit"
+                style="
+                    margin-top:22px;
+                    width:100%;
+                    background:#2563eb;
+                    color:white;
+                    border:none;
+                    padding:12px;
+                    border-radius:10px;
+                    cursor:pointer;
+                    font-weight:600;
+                ">
+                Generate Export
+            </button>
+
+        </div>
+
+    </div>
+
+</form>
+
+<style>
+
+.toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:14px;
+    font-size:14px;
+    color:#374151;
+}
+
+/* SWITCH */
+
+.switch{
+    position:relative;
+    display:inline-block;
+    width:46px;
+    height:24px;
+}
+
+.switch input{
+    opacity:0;
+    width:0;
+    height:0;
+}
+
+.slider{
+    position:absolute;
+    cursor:pointer;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+    background-color:#d1d5db;
+    transition:.3s;
+    border-radius:50px;
+}
+
+.slider:before{
+    position:absolute;
+    content:"";
+    height:18px;
+    width:18px;
+    left:3px;
+    bottom:3px;
+    background:white;
+    transition:.3s;
+    border-radius:50%;
+}
+
+.switch input:checked + .slider{
+    background:#2563eb;
+}
+
+.switch input:checked + .slider:before{
+    transform:translateX(22px);
+}
+
+</style>
+
+<script>
+
+function toggleExportOptions() {
+
+    const box = document.getElementById('exportOptions');
+
+    if (box.style.display === 'none' || box.style.display === '') {
+        box.style.display = 'block';
+    } else {
+        box.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    const allToggle = document.getElementById('allSellerToggle');
+
+    const sellerCheckboxes = document.querySelectorAll('.seller-checkbox');
+
+    // ALL SELLERS TOGGLE
+
+    allToggle.addEventListener('change', function () {
+
+    sellerCheckboxes.forEach(cb => {
+
+        cb.checked = allToggle.checked;
+
+    });
+
+});
+
+
+    // CHECK ALL STATUS
+
+    sellerCheckboxes.forEach(cb => {
+
+        cb.addEventListener('change', function () {
+
+            let allChecked = true;
+
+            sellerCheckboxes.forEach(item => {
+
+                if (!item.checked) {
+                    allChecked = false;
+                }
+
+            });
+
+            allToggle.checked = allChecked;
+
+        });
+
+    });
+
+});
+
+</script>
+
 @endsection
 
 @section('content')
@@ -81,6 +385,7 @@
 
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
 <script>
 @if($sellers->count())
 new Chart(document.getElementById('perfChart'), {
@@ -88,17 +393,48 @@ new Chart(document.getElementById('perfChart'), {
     data: {
         labels: @json($sellers->pluck('seller')->pluck('name')),
         datasets: [
-            { label: 'Sales Amount', data: @json($sellers->pluck('sales_amount')), backgroundColor: 'rgba(34,197,94,0.75)', borderRadius: 4 },
-            { label: 'Dispatched',   data: @json($sellers->pluck('dispatched')),   backgroundColor: 'rgba(99,102,241,0.65)', borderRadius: 4 },
-            { label: 'Commission',   data: @json($sellers->pluck('commission')),   backgroundColor: 'rgba(168,85,247,0.65)', borderRadius: 4 },
+            {
+                label: 'Sales Amount',
+                data: @json($sellers->pluck('sales_amount')),
+                backgroundColor: 'rgba(34,197,94,0.75)',
+                borderRadius: 4
+            },
+            {
+                label: 'Dispatched',
+                data: @json($sellers->pluck('dispatched')),
+                backgroundColor: 'rgba(99,102,241,0.65)',
+                borderRadius: 4
+            },
+            {
+                label: 'Commission',
+                data: @json($sellers->pluck('commission')),
+                backgroundColor: 'rgba(168,85,247,0.65)',
+                borderRadius: 4
+            },
         ]
     },
     options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { boxWidth: 10 } } },
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: {
+                    boxWidth: 10
+                }
+            }
+        },
         scales: {
-            x: { grid: { display: false } },
-            y: { ticks: { callback: v => '₹'+(v>=1000?(v/1000).toFixed(0)+'k':v) } }
+            x: {
+                grid: {
+                    display: false
+                }
+            },
+            y: {
+                ticks: {
+                    callback: v => '₹'+(v>=1000?(v/1000).toFixed(0)+'k':v)
+                }
+            }
         }
     }
 });

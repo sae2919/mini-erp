@@ -3,10 +3,301 @@
 @section('heading','Best Selling Products')
 
 @section('header-actions')
-    <a href="{{ url('/export/best-products-excel') . '?' . http_build_query(request()->all()) }}"
-   style="background:#16a34a;color:white;padding:8px 14px;border-radius:6px;margin-left:10px;">
-   Export Excel
-</a>
+
+<form method="GET" action="{{ route('export.best-products-excel') }}">
+
+    <input type="hidden" name="from" value="{{ request('from') }}">
+    <input type="hidden" name="to" value="{{ request('to') }}">
+
+    <div style="position:relative;display:inline-block;">
+
+        <button type="button"
+            onclick="toggleExportOptions()"
+            style="
+                background:#16a34a;
+                color:white;
+                padding:10px 18px;
+                border:none;
+                border-radius:10px;
+                cursor:pointer;
+                font-weight:600;
+            ">
+            Export Excel ▼
+        </button>
+
+        <div id="exportOptions"
+            style="
+                display:none;
+                position:absolute;
+                right:0;
+                top:55px;
+                background:white;
+                border:1px solid #e5e7eb;
+                border-radius:14px;
+                padding:18px;
+                width:340px;
+                box-shadow:0 10px 30px rgba(0,0,0,0.12);
+                z-index:999;
+            ">
+
+            <!-- PRODUCTS -->
+            <div style="
+                margin-bottom:14px;
+                font-size:15px;
+                font-weight:700;
+                color:#111827;
+            ">
+                Select Products
+            </div>
+
+            <!-- ALL PRODUCTS -->
+
+            <div class="toggle-row">
+
+                <span>All Products</span>
+
+                <label class="switch">
+
+                    <input
+                        type="checkbox"
+                        id="allProductToggle"
+                        checked
+                    >
+
+                    <span class="slider"></span>
+
+                </label>
+
+            </div>
+
+            <!-- PRODUCT LIST -->
+
+           @foreach($products as $p)
+
+<div class="toggle-row">
+
+    <span>{{ $p->product->name }}</span>
+
+    <label class="switch">
+
+        <input
+            type="checkbox"
+            class="product-checkbox"
+            name="product_ids[]"
+            value="{{ $p->product->id }}"
+            checked
+        >
+
+        <span class="slider"></span>
+
+    </label>
+
+</div>
+
+@endforeach
+
+            <!-- COLUMNS -->
+
+            <div style="
+                margin-top:20px;
+                margin-bottom:14px;
+                font-size:15px;
+                font-weight:700;
+                color:#111827;
+            ">
+                Select Columns
+            </div>
+
+            <div class="toggle-row">
+                <span>Product</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="product" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Category</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="category" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Units Sold</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="units" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Revenue</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="revenue" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Commission</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="commission" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Orders</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="orders" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <span>Share %</span>
+                <label class="switch">
+                    <input type="checkbox" name="columns[]" value="share" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <!-- BUTTON -->
+
+            <button type="submit"
+                style="
+                    margin-top:22px;
+                    width:100%;
+                    background:#2563eb;
+                    color:white;
+                    border:none;
+                    padding:12px;
+                    border-radius:10px;
+                    cursor:pointer;
+                    font-weight:600;
+                ">
+                Generate Export
+            </button>
+
+        </div>
+
+    </div>
+
+</form>
+
+<style>
+
+.toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:14px;
+    font-size:14px;
+    color:#374151;
+}
+
+.switch{
+    position:relative;
+    display:inline-block;
+    width:46px;
+    height:24px;
+}
+
+.switch input{
+    opacity:0;
+    width:0;
+    height:0;
+}
+
+.slider{
+    position:absolute;
+    cursor:pointer;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+    background-color:#d1d5db;
+    transition:.3s;
+    border-radius:50px;
+}
+
+.slider:before{
+    position:absolute;
+    content:"";
+    height:18px;
+    width:18px;
+    left:3px;
+    bottom:3px;
+    background:white;
+    transition:.3s;
+    border-radius:50%;
+}
+
+.switch input:checked + .slider{
+    background:#2563eb;
+}
+
+.switch input:checked + .slider:before{
+    transform:translateX(22px);
+}
+
+</style>
+
+<script>
+
+function toggleExportOptions() {
+
+    const box = document.getElementById('exportOptions');
+
+    if (box.style.display === 'none' || box.style.display === '') {
+        box.style.display = 'block';
+    } else {
+        box.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    const allToggle = document.getElementById('allProductToggle');
+
+    const productCheckboxes = document.querySelectorAll('.product-checkbox');
+
+    allToggle.addEventListener('change', function () {
+
+        productCheckboxes.forEach(cb => {
+
+            cb.checked = allToggle.checked;
+
+        });
+
+    });
+
+    productCheckboxes.forEach(cb => {
+
+        cb.addEventListener('change', function () {
+
+            let allChecked = true;
+
+            productCheckboxes.forEach(item => {
+
+                if (!item.checked) {
+                    allChecked = false;
+                }
+
+            });
+
+            allToggle.checked = allChecked;
+
+        });
+
+    });
+
+});
+
+</script>
+
 @endsection
 
 @section('content')
