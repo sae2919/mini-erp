@@ -252,8 +252,9 @@
 
         <div
             class="
-                px-5 py-4
+                px-6 py-4
                 border-t border-gray-100
+                bg-gray-50/30
                 flex flex-wrap
                 items-center
                 justify-between
@@ -261,50 +262,22 @@
             "
         >
 
-            {{-- RESULTS --}}
-            <div class="text-sm text-gray-500">
-
-                Showing
-
-                <span class="font-semibold text-gray-700">
-                    {{ $logs->firstItem() }}
-                </span>
-
-                to
-
-                <span class="font-semibold text-gray-700">
-                    {{ $logs->lastItem() }}
-                </span>
-
-                of
-
-                <span class="font-semibold text-gray-700">
-                    {{ $logs->total() }}
-                </span>
-
-                results
-
+            {{-- RESULTS INFO --}}
+            <div class="text-xs font-bold uppercase tracking-widest text-gray-400">
+                Showing <span class="text-gray-700">{{ $logs->firstItem() }}</span> to <span class="text-gray-700">{{ $logs->lastItem() }}</span> of <span class="text-gray-700">{{ $logs->total() }}</span> results
             </div>
 
 
-            {{-- PAGINATION --}}
+            {{-- PAGINATION CONTROLS --}}
             <div class="flex items-center gap-3 flex-wrap">
 
                 {{-- PREVIOUS --}}
                 @if($logs->onFirstPage())
 
-                    <span
-                        class="
-                            w-12 h-12
-                            rounded-lg
-                            bg-gray-100
-                            text-gray-400
-                            text-3xl
-                            font-bold
-                            flex items-center justify-center
-                        "
-                    >
-                        ‹
+                    <span class="w-10 h-10 rounded-xl bg-gray-100 text-gray-300 flex items-center justify-center border border-gray-200 cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
                     </span>
 
                 @else
@@ -312,42 +285,41 @@
                     <a
                         href="{{ $logs->previousPageUrl() }}"
                         class="
-                            w-12 h-12
-                            rounded-lg
+                            w-10 h-10
+                            rounded-xl
                             border border-gray-200
                             bg-white
-                            hover:bg-gray-50
+                            hover:bg-indigo-600
+                            hover:text-white
+                            hover:border-indigo-600
                             flex items-center justify-center
-                            text-gray-700
-                            text-3xl
-                            font-extrabold
-                            transition
+                            text-gray-600
+                            transition-all
+                            shadow-sm
+                            group
                         "
                     >
-                        ‹
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
                     </a>
 
                 @endif
 
 
-                {{-- PAGE INFO --}}
+                {{-- CURRENT PAGE CHIP --}}
                 <div
                     class="
-                        h-12 px-5
-                        rounded-lg
+                        h-10 px-5
+                        rounded-xl
                         bg-indigo-600
                         text-white
                         flex items-center
-                        text-sm font-semibold
+                        text-xs font-bold uppercase tracking-wider
+                        shadow-md shadow-indigo-100
                     "
                 >
-
-                    Page {{ $logs->currentPage() }}
-
-                    of
-
-                    {{ $logs->lastPage() }}
-
+                    Page {{ $logs->currentPage() }} / {{ $logs->lastPage() }}
                 </div>
 
 
@@ -357,37 +329,31 @@
                     <a
                         href="{{ $logs->nextPageUrl() }}"
                         class="
-                            w-12 h-12
-                            rounded-lg
+                            w-10 h-10
+                            rounded-xl
                             border border-gray-200
                             bg-white
-                            hover:bg-gray-50
+                            hover:bg-indigo-600
+                            hover:text-white
+                            hover:border-indigo-600
                             flex items-center justify-center
-                            text-gray-700
-                            text-3xl
-                            font-extrabold
-                            transition
+                            text-gray-600
+                            transition-all
+                            shadow-sm
+                            group
                         "
                     >
-                        ›
-
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
                     </a>
 
                 @else
 
-                    <span
-                        class="
-                            w-12 h-12
-                            rounded-lg
-                            bg-gray-100
-                            text-gray-400
-                            text-3xl
-                            font-bold
-                            flex items-center justify-center
-                        "
-                    >
-                        ›
-
+                    <span class="w-10 h-10 rounded-xl bg-gray-100 text-gray-300 flex items-center justify-center border border-gray-200 cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
                     </span>
 
                 @endif
@@ -401,29 +367,13 @@
                 >
 
                     @foreach(request()->except('page') as $key => $value)
-
                         @if(is_array($value))
-
                             @foreach($value as $v)
-
-                                <input
-                                    type="hidden"
-                                    name="{{ $key }}[]"
-                                    value="{{ $v }}"
-                                >
-
+                                <input type="hidden" name="{{ $key }}[]" value="{{ $v }}">
                             @endforeach
-
                         @else
-
-                            <input
-                                type="hidden"
-                                name="{{ $key }}"
-                                value="{{ $value }}"
-                            >
-
+                            <input type="hidden" name="{{ $key }}" value="{{ $value }}">
                         @endif
-
                     @endforeach
 
                     <input
@@ -433,28 +383,31 @@
                         max="{{ $logs->lastPage() }}"
                         placeholder="Page"
                         class="
-                            w-24 h-12
-                            border border-gray-300
-                            rounded-lg
+                            w-20 h-10
+                            border border-gray-200
+                            rounded-xl
                             px-3
-                            text-sm
+                            text-xs font-medium
                             outline-none
                             focus:ring-2
-                            focus:ring-indigo-200
+                            focus:ring-indigo-100
+                            focus:border-indigo-400
+                            transition-all
                         "
                     >
 
                     <button
                         type="submit"
                         class="
-                            h-12 px-5
-                            rounded-lg
+                            h-10 px-4
+                            rounded-xl
                             bg-gray-900
                             hover:bg-black
                             text-white
-                            text-sm
-                            font-semibold
-                            transition
+                            text-xs
+                            font-bold uppercase tracking-wider
+                            transition-all
+                            active:scale-95
                         "
                     >
                         Go
