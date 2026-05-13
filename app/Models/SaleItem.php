@@ -22,18 +22,30 @@ class SaleItem extends Model
         'subtotal'      => 'decimal:2',
     ];
 
+    // Sale Relationship
     public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);
     }
 
+    // Product Relationship
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
-    public function profit(): float
+    // Profit Accessor
+    public function getProfitAttribute(): float
     {
-        return ($this->selling_price - $this->cost_price) * $this->quantity;
+        return (
+            ($this->selling_price - $this->cost_price)
+            * $this->quantity
+        );
+    }
+
+    // Subtotal Accessor
+    public function getSubtotalAttribute(): float
+    {
+        return $this->selling_price * $this->quantity;
     }
 }

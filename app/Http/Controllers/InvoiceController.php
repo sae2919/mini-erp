@@ -8,29 +8,53 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceController extends Controller
 {
+    // Download Invoice PDF
     public function download(Sale $sale)
     {
-        $sale->load(['items.product.category', 'customer']);
+        $sale->load([
+            'items.product.category',
+            'customer'
+        ]);
 
-        $pdf = Pdf::loadView('pdf.invoice', compact('sale'))
-            ->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView(
+            'pdf.invoice',
+            compact('sale')
+        )->setPaper('a4', 'portrait');
 
         ActivityLogger::log(
-            'exported', 'Sale',
+            'exported',
+            'Sale',
             "Invoice PDF downloaded for {$sale->reference}",
             $sale->id
         );
 
-        return $pdf->download("invoice-{$sale->reference}.pdf");
+        return $pdf->download(
+            "invoice-{$sale->reference}.pdf"
+        );
     }
 
+    // Preview Invoice PDF
     public function preview(Sale $sale)
     {
-        $sale->load(['items.product.category', 'customer']);
+        $sale->load([
+            'items.product.category',
+            'customer'
+        ]);
 
-        $pdf = Pdf::loadView('pdf.invoice', compact('sale'))
-            ->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView(
+            'pdf.invoice',
+            compact('sale')
+        )->setPaper('a4', 'portrait');
 
-        return $pdf->stream("invoice-{$sale->reference}.pdf");
+        ActivityLogger::log(
+            'previewed',
+            'Sale',
+            "Invoice PDF previewed for {$sale->reference}",
+            $sale->id
+        );
+
+        return $pdf->stream(
+            "invoice-{$sale->reference}.pdf"
+        );
     }
 }
