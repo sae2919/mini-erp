@@ -9,30 +9,33 @@
     <h2 class="text-lg font-semibold mb-4">📦 My Requests</h2>
 
     {{-- 🔥 SUMMARY CARDS --}}
-    <div class="grid grid-cols-3 gap-4 mb-6">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 
-        <div class="bg-blue-50 p-4 rounded-lg">
-            <p class="text-sm text-gray-500">Total Requested</p>
-            <h2 class="text-xl font-bold text-blue-600">
-                ₹{{ number_format($totalAmount ?? 0, 2) }}
-            </h2>
-        </div>
+    <div class="bg-blue-50 border border-blue-100 rounded-xl p-5">
+        <p class="text-sm text-gray-500">Total Requested</p>
 
-        <div class="bg-green-50 p-4 rounded-lg">
-            <p class="text-sm text-gray-500">Total Paid</p>
-            <h2 class="text-xl font-bold text-green-600">
-                ₹{{ number_format($paidAmount ?? 0, 2) }}
-            </h2>
-        </div>
-
-        <div class="bg-red-50 p-4 rounded-lg">
-            <p class="text-sm text-gray-500">Pending Amount</p>
-            <h2 class="text-xl font-bold text-red-600">
-                ₹{{ number_format($pendingAmount ?? 0, 2) }}
-            </h2>
-        </div>
-
+        <h2 class="text-2xl font-bold text-blue-600 mt-1">
+            ₹{{ number_format($totalAmount ?? 0, 2) }}
+        </h2>
     </div>
+
+    <div class="bg-green-50 border border-green-100 rounded-xl p-5">
+        <p class="text-sm text-gray-500">Total Paid</p>
+
+        <h2 class="text-2xl font-bold text-green-600 mt-1">
+            ₹{{ number_format($paidAmount ?? 0, 2) }}
+        </h2>
+    </div>
+
+    <div class="bg-red-50 border border-red-100 rounded-xl p-5">
+        <p class="text-sm text-gray-500">Pending Amount</p>
+
+        <h2 class="text-2xl font-bold text-red-600 mt-1">
+            ₹{{ number_format($pendingAmount ?? 0, 2) }}
+        </h2>
+    </div>
+
+</div>
 
     <table class="w-full text-sm">
         <thead>

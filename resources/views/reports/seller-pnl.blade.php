@@ -234,35 +234,37 @@
 
         </div>
 
-        <div>
+       <div>
 
-            <label class="block text-xs text-gray-500 mb-1">
-                From
-            </label>
+    <label class="block text-xs text-gray-500 mb-1">
+        From
+    </label>
 
-            <input
-                type="date"
-                name="from"
-                value="{{ $from }}"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            >
+    <input
+        type="date"
+        id="fromDate"
+        name="from"
+        value="{{ $from }}"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+    >
 
-        </div>
+</div>
 
-        <div>
+<div>
 
-            <label class="block text-xs text-gray-500 mb-1">
-                To
-            </label>
+    <label class="block text-xs text-gray-500 mb-1">
+        To
+    </label>
 
-            <input
-                type="date"
-                name="to"
-                value="{{ $to }}"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            >
+    <input
+        type="date"
+        id="toDate"
+        name="to"
+        value="{{ $to }}"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+    >
 
-        </div>
+</div>
 
         <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
 
@@ -423,6 +425,30 @@
 
 <script>
 
+document.addEventListener('DOMContentLoaded', function () {
+
+    const fromDate = document.getElementById('fromDate');
+    const toDate = document.getElementById('toDate');
+
+    function updateToDateLimit() {
+
+        if (fromDate.value) {
+
+            toDate.min = fromDate.value;
+
+            if (toDate.value && toDate.value < fromDate.value) {
+
+                toDate.value = fromDate.value;
+            }
+        }
+    }
+
+    updateToDateLimit();
+
+    fromDate.addEventListener('change', updateToDateLimit);
+
+});
+
 function toggleExportDropdown() {
 
     document
@@ -486,12 +512,6 @@ function submitExport() {
 
     let params = new URLSearchParams();
 
-    /*
-    |--------------------------------------------------------------------------
-    | DATE FILTERS
-    |--------------------------------------------------------------------------
-    */
-
     let from =
         document.querySelector('input[name="from"]').value;
 
@@ -500,12 +520,6 @@ function submitExport() {
 
     params.append('from', from);
     params.append('to', to);
-
-    /*
-    |--------------------------------------------------------------------------
-    | SELLER FILTERS
-    |--------------------------------------------------------------------------
-    */
 
     let selectedSellerIds = [];
 
@@ -518,12 +532,6 @@ function submitExport() {
             params.append('seller_ids[]', toggle.value);
         });
 
-    /*
-    |--------------------------------------------------------------------------
-    | IF NO SELLER SELECTED -> EXPORT ALL
-    |--------------------------------------------------------------------------
-    */
-
     if (selectedSellerIds.length === 0) {
 
         document
@@ -534,24 +542,12 @@ function submitExport() {
             });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | COLUMN FILTERS
-    |--------------------------------------------------------------------------
-    */
-
     document
         .querySelectorAll('.column-toggle:checked')
         .forEach(toggle => {
 
             params.append('columns[]', toggle.value);
         });
-
-    /*
-    |--------------------------------------------------------------------------
-    | EXPORT URL
-    |--------------------------------------------------------------------------
-    */
 
     window.location.href =
         "{{ route('export.seller-pnl-excel') }}?"

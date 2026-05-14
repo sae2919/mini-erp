@@ -277,11 +277,23 @@ document.getElementById('exportMenu')
     <form method="GET" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex gap-3 items-end">
         <div>
             <label class="block text-xs text-gray-500 mb-1">From</label>
-            <input type="date" name="from" value="{{ $from }}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <input
+    type="date"
+    id="fromDate"
+    name="from"
+    value="{{ $from }}"
+    class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+>
         </div>
         <div>
             <label class="block text-xs text-gray-500 mb-1">To</label>
-            <input type="date" name="to" value="{{ $to }}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <input
+    type="date"
+    id="toDate"
+    name="to"
+    value="{{ $to }}"
+    class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+>
         </div>
         <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Generate</button>
     </form>
@@ -330,4 +342,31 @@ document.getElementById('exportMenu')
         </table>
     </div>
 </div>
+<script>
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    const fromDate = document.getElementById('fromDate');
+    const toDate = document.getElementById('toDate');
+
+    function updateToDateLimit() {
+
+        if (fromDate.value) {
+
+            toDate.min = fromDate.value;
+
+            if (toDate.value && toDate.value < fromDate.value) {
+
+                toDate.value = fromDate.value;
+            }
+        }
+    }
+
+    updateToDateLimit();
+
+    fromDate.addEventListener('change', updateToDateLimit);
+
+});
+
+</script>
 @endsection

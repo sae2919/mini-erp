@@ -249,13 +249,25 @@ body {
     </div>
     <div class="r-filters">
       <div class="r-filter-group">
-        <label>From</label>
-        <input type="date" id="fromDate" value="{{ now()->startOfMonth()->format('Y-m-d') }}" />
-      </div>
-      <div class="r-filter-group">
-        <label>To</label>
-        <input type="date" id="toDate" value="{{ now()->format('Y-m-d') }}" />
-      </div>
+    <label>From</label>
+
+    <input
+        type="date"
+        id="fromDate"
+        value="{{ now()->startOfMonth()->format('Y-m-d') }}"
+        onchange="handleDateValidation()"
+    />
+</div>
+
+<div class="r-filter-group">
+    <label>To</label>
+
+    <input
+        type="date"
+        id="toDate"
+        value="{{ now()->format('Y-m-d') }}"
+    />
+</div>
       <div class="r-filter-group">
         <label>Category</label>
         <select id="catFilter" onchange="filterReport()">
@@ -932,5 +944,22 @@ document.getElementById('exportMenu')
         e.stopPropagation();
 
     });
+    // ✅ DATE VALIDATION
+function handleDateValidation() {
+
+    const fromDate = document.getElementById('fromDate');
+    const toDate   = document.getElementById('toDate');
+
+    // Disable previous dates in TO
+    toDate.min = fromDate.value;
+
+    // Auto-fix invalid TO date
+    if (toDate.value < fromDate.value) {
+        toDate.value = fromDate.value;
+    }
+}
+
+// ✅ RUN ON PAGE LOAD
+handleDateValidation();
 </script>
 @endpush

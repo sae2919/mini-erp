@@ -7,122 +7,138 @@
 
 <div class="py-4 space-y-4">
 
-    {{-- FILTERS --}}
-    <form
-        method="GET"
-        class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-end"
-    >
+    <form method="GET"
+      class="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 mb-5">
 
-        <div>
-            <label class="block text-xs text-gray-500 mb-1">
+    <div class="flex flex-wrap items-end gap-4">
+
+        {{-- FROM DATE --}}
+        <div class="min-w-[180px] flex-1">
+            <label class="block text-sm font-medium text-gray-600 mb-2">
                 From
             </label>
 
             <input
                 type="date"
+                id="from_date"
                 name="from"
                 value="{{ request('from') }}"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            >
+                class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm shadow-sm">
         </div>
 
-        <div>
-            <label class="block text-xs text-gray-500 mb-1">
+        {{-- TO DATE --}}
+        <div class="min-w-[180px] flex-1">
+            <label class="block text-sm font-medium text-gray-600 mb-2">
                 To
             </label>
 
             <input
                 type="date"
+                id="to_date"
                 name="to"
                 value="{{ request('to') }}"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            >
+                min="{{ request('from') }}"
+                class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm shadow-sm">
         </div>
 
-        <div>
-            <label class="block text-xs text-gray-500 mb-1">
+        {{-- USER --}}
+        <div class="min-w-[180px] flex-1">
+            <label class="block text-sm font-medium text-gray-600 mb-2">
                 User
             </label>
 
-            <select
-                name="user_id"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            >
+            <select name="user_id"
+                    class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm shadow-sm">
 
-                <option value="">
-                    All Users
-                </option>
+                <option value="">All Users</option>
 
                 @foreach($users as $user)
-
-                    <option
-                        value="{{ $user->id }}"
-                        {{ request('user_id') == $user->id ? 'selected' : '' }}
-                    >
+                    <option value="{{ $user->id }}"
+                        {{ request('user_id') == $user->id ? 'selected' : '' }}>
                         {{ $user->name }}
                     </option>
-
                 @endforeach
 
             </select>
         </div>
 
-        <div>
-            <label class="block text-xs text-gray-500 mb-1">
+        {{-- ACTION --}}
+        <div class="min-w-[180px] flex-1">
+            <label class="block text-sm font-medium text-gray-600 mb-2">
                 Action
             </label>
 
-            <select
-                name="action"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            >
+            <select name="action"
+                    class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm shadow-sm">
 
-                <option value="">
-                    All Actions
-                </option>
+                <option value="">All Actions</option>
 
                 @foreach($actions as $action)
-
-                    <option
-                        value="{{ $action }}"
-                        {{ request('action') == $action ? 'selected' : '' }}
-                    >
-                        {{ $action }}
+                    <option value="{{ $action }}"
+                        {{ request('action') == $action ? 'selected' : '' }}>
+                        {{ ucfirst($action) }}
                     </option>
-
                 @endforeach
 
             </select>
         </div>
 
-        {{-- FILTER --}}
-        <button
-            class="
-                px-4 py-2
-                bg-indigo-600
-                text-white
-                rounded-lg
-                text-sm
-                hover:bg-indigo-700
-                transition
-            "
-        >
-            Filter
-        </button>
+        {{-- FILTER BUTTON --}}
+        <div class="w-auto">
+            <button type="submit"
+                    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition">
+                Filter
+            </button>
+        </div>
 
-        {{-- CLEAR --}}
-        @if(request()->hasAny(['from','to','user_id','action']))
-
-            <a
-                href="{{ route('activity-logs.index') }}"
-                class="text-sm text-gray-500 hover:underline"
-            >
+        {{-- CLEAR BUTTON --}}
+        <div class="w-auto">
+            <a href="{{ route('activity-logs.index') }}"
+               class="inline-flex items-center justify-center px-5 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition">
                 Clear
             </a>
+        </div>
 
-        @endif
+    </div>
 
-    </form>
+</form>
+
+<script>
+
+    const fromDate = document.getElementById('from_date');
+    const toDate   = document.getElementById('to_date');
+
+    fromDate.addEventListener('change', function () {
+
+        toDate.min = this.value;
+
+        if (toDate.value && toDate.value < this.value) {
+            toDate.value = this.value;
+        }
+
+    });
+
+</script>
+
+{{-- PROFESSIONAL DATE VALIDATION --}}
+<script>
+
+    const fromDate = document.getElementById('from_date');
+    const toDate   = document.getElementById('to_date');
+
+    fromDate.addEventListener('change', function () {
+
+        // Set minimum selectable TO date
+        toDate.min = this.value;
+
+        // Reset invalid TO date automatically
+        if (toDate.value && toDate.value < this.value) {
+            toDate.value = this.value;
+        }
+
+    });
+
+</script>
 
 
     {{-- TABLE --}}
